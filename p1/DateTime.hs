@@ -101,8 +101,9 @@ parseDateTime = DateTime
     <*> (isJust <$> optional (symbol 'Z'))
 
 -- Exercise 2
+
 run :: Parser a b -> [a] -> Maybe b
-run = undefined
+run p = fmap fst . find (not . null . snd) . parse p
 
 
 -- Exercise 3
