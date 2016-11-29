@@ -104,7 +104,7 @@ parseDateTime = DateTime
 -- Exercise 2
 
 run :: Parser a b -> [a] -> Maybe b
-run p = fmap fst . find (not . null . snd) . parse p
+run p = fmap fst . find (null . snd) . parse p
 
 -- Exercise 3
 
