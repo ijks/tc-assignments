@@ -2,6 +2,7 @@ import Prelude hiding ((<*), (*>), sequence)
 
 import Data.List (find)
 import Data.Maybe (isJust)
+import Text.Printf (printf)
 
 import ParseLib.Abstract
 
@@ -105,12 +106,35 @@ parseDateTime = DateTime
 run :: Parser a b -> [a] -> Maybe b
 run p = fmap fst . find (not . null . snd) . parse p
 
-
 -- Exercise 3
+
+printDigits :: Int -> Int -> String
+printDigits n = printf $ "%0" ++ show n ++ "d"
+
+printDate :: Date -> String
+printDate (Date y m d) =
+    concat
+        [ printDigits 4 $ unYear y
+        , printDigits 2 $ unMonth m
+        , printDigits 2 $ unDay d
+        ]
+
+printTime :: Time -> String
+printTime (Time h m s) =
+    concat
+        [ printDigits 2 $ unHour h
+        , printDigits 2 $ unMinute m
+        , printDigits 2 $ unSecond s
+        ]
+
 printDateTime :: DateTime -> String
-printDateTime = undefined
-
-
+printDateTime (DateTime d t u) =
+    concat
+        [ printDate d
+        , "T"
+        , printTime t
+        , if u then "Z" else ""
+        ]
 
 -- Exercise 4
 parsePrint s = fmap printDateTime $ run parseDateTime s
