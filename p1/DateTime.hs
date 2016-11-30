@@ -139,13 +139,26 @@ printDateTime (DateTime d t u) =
 -- Exercise 4
 parsePrint s = fmap printDateTime $ run parseDateTime s
 
-
-
-
 -- Exercise 5
+checkDate :: Date -> Bool
+checkDate (Date (Year y) (Month m) (Day d))
+    =  m >= 1 && m <= 12
+    && d >= 1 && d <= monthLength
+        where
+            monthLength = 
+                [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] !! (m - 1)
+                + if leapYear && m == 2 then 1 else 0
+            leapYear = divisible 4 && (not (divisible 100) || divisible 400)
+            divisible n = y `mod` n == 0
+
+checkTime :: Time -> Bool
+checkTime (Time (Hour h) (Minute m) (Second s)) 
+    =  h >= 0 && h < 24
+    && m >= 0 && m < 60
+    && s >= 0 && s < 60
+
 checkDateTime :: DateTime -> Bool
-checkDateTime = undefined
-
-
+checkDateTime (DateTime d t _) =
+    checkDate d && checkTime t
 
 -- Exercise 6
