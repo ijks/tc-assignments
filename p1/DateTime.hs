@@ -162,3 +162,19 @@ checkDateTime (DateTime d t _) =
     checkDate d && checkTime t
 
 -- Exercise 6
+
+data Event = Event
+    { timestamp :: DateTime
+    , uid :: String
+    , start :: DateTime
+    , end :: DateTime
+    , description :: Maybe String
+    , summary :: Maybe String
+    , location :: Maybe String
+    }
+
+data Calendar = Calendar
+    { events :: [Event]
+    , prodid :: String
+    , version :: String
+    }
