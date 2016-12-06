@@ -69,6 +69,10 @@ recognizeCalendar s = run scanCalendar s >>= run parseCalendar
 main = do
     res <- readCalendar "examples/rooster_infotc.ics"
     putStrLn . render $ maybe (text "Calendar parsing error") (ppMonth (Year 2012) (Month 11)) res
+    where
+        -- Are these functions supposed to be in the prelude?
+        render = undefined
+        text = undefined
 
 
 -- Exercise 1
