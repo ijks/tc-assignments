@@ -110,5 +110,5 @@ timeSpent = undefined
 
 
 -- Exercise 5
-ppMonth :: Year -> Month -> Calendar -> Doc
+ppMonth :: Year -> Month -> Calendar -> String
 ppMonth = undefined
