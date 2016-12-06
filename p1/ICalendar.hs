@@ -1,8 +1,11 @@
 module ICalendar where
 
-import ParseLib.Abstract
+import Prelude hiding ((<*), (*>), (<$))
+
+import Data.Char (isUpper)
 import Data.Maybe
 
+import ParseLib.Abstract
 
 data DateTime = DateTime
     { date :: Date
@@ -76,11 +79,35 @@ main = do
 
 
 -- Exercise 1
-data Token = Token
+
+data Token
+    = Begin String
+    | End String
+    | Property String
+    | Text String
+    | LineBreak
     deriving (Eq, Ord, Show)
 
+scanProperty :: Parser Char Token
+scanProperty = Property <$> some (satisfy isUpper) <* symbol ':'
+
+scanBegin :: Parser Char Token
+scanBegin = Begin <$> (token "BEGIN:" *> some (satisfy isUpper))
+
+scanEnd :: Parser Char Token
+scanEnd = End <$> (token "END:" *> some (satisfy isUpper))
+
+scanText :: Parser Char Token
+scanText = Text <$> some (satisfy (`notElem` ['\r', '\n']))
+
 scanCalendar :: Parser Char [Token]
-scanCalendar = undefined
+scanCalendar = many $ choice
+    [ scanBegin
+    , scanEnd
+    , scanProperty
+    , scanText
+    , LineBreak <$ token "\r\n"
+    ]
 
 parseCalendar :: Parser Token Calendar
 parseCalendar = undefined
