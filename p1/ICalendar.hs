@@ -82,6 +82,34 @@ main = do
 
 -- Exercise 1
 
+fromDigits :: [Int] -> Int
+fromDigits = foldl (\r d -> r * 10 + d) 0
+
+times :: Int -> Parser t a -> Parser t [a]
+times n = sequence . replicate n
+
+parseDigits :: Int -> Parser Char Int
+parseDigits n = fromDigits <$> n `times` newdigit
+
+parseDate :: Parser Char Date
+parseDate = Date
+    <$> (Year <$> parseDigits 4)
+    <*> (Month <$> parseDigits 2)
+    <*> (Day <$> parseDigits 2)
+
+parseTime :: Parser Char Time
+parseTime = Time
+    <$> (Hour <$> parseDigits 2)
+    <*> (Minute <$> parseDigits 2)
+    <*> (Second <$> parseDigits 2)
+
+parseDateTime :: Parser Char DateTime
+parseDateTime = DateTime
+    <$> parseDate
+    <*  symbol 'T'
+    <*> parseTime
+    <*> (isJust <$> optional (symbol 'Z'))
+
 data Token
     = Begin String
     | End String
