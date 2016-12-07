@@ -83,30 +83,29 @@ main = do
 data Token
     = Begin String
     | End String
-    | Property String
-    | Text String
-    | LineBreak
+    | Property String String
     deriving (Eq, Ord, Show)
 
+crlf :: Parser Char String
+crlf = token "\r\n"
+
 scanProperty :: Parser Char Token
-scanProperty = Property <$> some (satisfy isUpper) <* symbol ':'
+scanProperty = Property
+    <$> some (satisfy isUpper) <* symbol ':'
+    <*> some (satisfy (`notElem` ['\r', '\n']))
+    <* crlf
 
 scanBegin :: Parser Char Token
-scanBegin = Begin <$> (token "BEGIN:" *> some (satisfy isUpper))
+scanBegin = Begin <$> (token "BEGIN:" *> some (satisfy isUpper)) <* crlf
 
 scanEnd :: Parser Char Token
-scanEnd = End <$> (token "END:" *> some (satisfy isUpper))
-
-scanText :: Parser Char Token
-scanText = Text <$> some (satisfy (`notElem` ['\r', '\n']))
+scanEnd = End <$> (token "END:" *> some (satisfy isUpper)) <* crlf
 
 scanCalendar :: Parser Char [Token]
 scanCalendar = many $ choice
     [ scanBegin
     , scanEnd
     , scanProperty
-    , scanText
-    , LineBreak <$ token "\r\n"
     ]
 
 parseCalendar :: Parser Token Calendar
