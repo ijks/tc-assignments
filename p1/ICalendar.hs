@@ -1,9 +1,11 @@
+{-# LANGUAGE NamedFieldPuns #-}
+
 module ICalendar where
 
 import Prelude hiding ((<*), (*>), (<$))
 
 import Data.Char (isUpper)
-import Data.Maybe
+import Data.Maybe (listToMaybe)
 
 import ParseLib.Abstract
 
@@ -108,10 +110,48 @@ scanCalendar = many $ choice
     , scanProperty
     ]
 
+mapMaybe :: (a -> Maybe b) -> Parser s a -> Parser s b
+mapMaybe f p = p >>= \x ->
+    case f x of
+        Just y -> succeed y
+        Nothing -> empty
+
+satisfyMap :: (s -> Maybe a) -> Parser s a
+satisfyMap f = mapMaybe f anySymbol
+
+property :: String -> Parser Token String
+property p = satisfyMap $ \t ->
+    case t of
+        Property p' s
+            | p' == p -> Just s
+            | otherwise -> Nothing
+        _ -> Nothing
+
+begin :: String -> Parser Token ()
+begin p = satisfy (== Begin p)
+
+end :: String -> Parser Token ()
+end p = satisfy (== End p)
+
+parseCalprops :: Parser Token String
+parseCalprops =
+    (prodId <* version) <|> (version *> prodId)
+    where
+        prodId = property "PRODID"
+        version = do
+            version <- property "VERSION"
+            if version == "2.0" then succeed () else empty
+
+parseEvent :: Parser Token VEvent
+parseEvent = undefined
+
 parseCalendar :: Parser Token Calendar
-parseCalendar = undefined
-
-
+parseCalendar = do
+    begin "VCALENDAR"
+    prodId <- parseCalprops
+    events <- many parseEvent
+    end "VCALENDAR"
+    return Calendar { prodId, events }
 
 -- Exercise 2
 readCalendar :: FilePath -> IO (Maybe Calendar)
