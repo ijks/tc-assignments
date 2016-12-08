@@ -142,17 +142,24 @@ parseDateTime = DateTime
 data Token
     = Begin String
     | End String
-    | Property String String
-    deriving (Eq, Ord, Show)
+    | Property String Info
+    deriving (Eq, Ord)
+
+data Info
+    = DateInfo DateTime
+    | TextInfo String
+    deriving (Eq, Ord)
 
 crlf :: Parser Char String
 crlf = token "\r\n"
 
 scanProperty :: Parser Char Token
-scanProperty = Property
-    <$> some (satisfy isUpper) <* symbol ':'
-    <*> some (satisfy (`notElem` ['\r', '\n']))
+scanProperty = Property 
+    <$> some (satisfy isUpper) <* symbol ':' 
+    <*> (DateInfo <$> parseDateTime <|> TextInfo <$> text) 
     <* crlf
+    where
+        text = some (satisfy (`notElem` "\r\n"))
 
 scanBegin :: Parser Char Token
 scanBegin = Begin <$> (token "BEGIN:" *> some (satisfy isUpper)) <* crlf
@@ -176,31 +183,48 @@ mapMaybe f p = p >>= \x ->
 satisfyMap :: (s -> Maybe a) -> Parser s a
 satisfyMap f = mapMaybe f anySymbol
 
-property :: String -> Parser Token String
-property p = satisfyMap $ \t ->
+textProperty :: String -> Parser Token String
+textProperty p = satisfyMap $ \t ->
     case t of
-        Property p' s
+        Property p' (TextInfo s)
             | p' == p -> Just s
             | otherwise -> Nothing
         _ -> Nothing
 
-begin :: String -> Parser Token ()
+dateProperty :: String -> Parser Token DateTime
+dateProperty p = satisfyMap $ \t ->
+    case t of
+        Property p' (DateInfo s)
+            | p' == p -> Just s
+            | otherwise -> Nothing
+        _ -> Nothing
+
+begin :: String -> Parser Token Token
 begin p = satisfy (== Begin p)
 
-end :: String -> Parser Token ()
+end :: String -> Parser Token Token
 end p = satisfy (== End p)
 
 parseCalprops :: Parser Token String
-parseCalprops =
+parseCalprops = 
     (prodId <* version) <|> (version *> prodId)
     where
-        prodId = property "PRODID"
+        prodId = textProperty "PRODID"
         version = do
-            version <- property "VERSION"
-            if version == "2.0" then succeed () else empty
+            v <- textProperty "VERSION"
+            if v == "2.0" then succeed () else empty
 
 parseEvent :: Parser Token VEvent
-parseEvent = undefined
+parseEvent = flip VEvent
+    <$  begin "VEVENT"
+    <*> textProperty "UID"
+    <*> dateProperty "DTSTAMP"
+    <*> dateProperty "DTSTART"
+    <*> dateProperty "DTEND"
+    <*> optional (textProperty "DESCRIPTION")
+    <*> optional (textProperty "SUMMARY")
+    <*> optional (textProperty "LOCATION")
+    <*  end "VEVENT"
 
 parseCalendar :: Parser Token Calendar
 parseCalendar = do
