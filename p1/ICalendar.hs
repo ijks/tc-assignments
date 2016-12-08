@@ -4,6 +4,7 @@ module ICalendar where
 
 import Prelude hiding ((<*), (*>), (<$))
 
+import Control.Monad (replicateM)
 import Data.Char (isUpper)
 import Data.Maybe (listToMaybe)
 
@@ -113,11 +114,8 @@ main = do
 fromDigits :: [Int] -> Int
 fromDigits = foldl (\r d -> r * 10 + d) 0
 
-times :: Int -> Parser t a -> Parser t [a]
-times n = sequence . replicate n
-
 parseDigits :: Int -> Parser Char Int
-parseDigits n = fromDigits <$> n `times` newdigit
+parseDigits n = fromDigits <$> n `replicateM` newdigit
 
 parseDate :: Parser Char Date
 parseDate = Date
