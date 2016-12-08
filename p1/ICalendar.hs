@@ -247,8 +247,30 @@ readCalendar path = do
 -- Exercise 3
 -- DO NOT use a derived Show instance. Your printing style needs to be nicer than that :)
 printCalendar :: Calendar -> String
-printCalendar = undefined
+printCalendar Calendar { .. } = 
+    concat $ map (++"\r\n")
+    [ "BEGIN:VCALENDAR"
+    , "PRODID:" ++ prodId
+    , "VERSION:2.0" 
+    ] ++ map printVEvent events ++ 
+    ["END:VCALENDAR\r\n"]
 
+printVEvent VEvent { .. } = 
+    concat $ map (++"\r\n")
+    [ "BEGIN:VEVENT"
+    , "UID:" ++ uid
+    , "DTSTAMP:" ++ printDateTime dtStamp
+    , "DTSTART:" ++ printDateTime dtStart
+    , "DTEND:" ++ printDateTime dtEnd
+    ] ++
+    [ maybeShow "DESCRIPTION:" description
+    , maybeShow "SUMMARY:" summary
+    , maybeShow "LOCATION:" location
+    ] ++ 
+    [ "END:VEVENT\r\n"]
+    where
+        maybeShow _ Nothing = ""
+        maybeShow s (Just a) = s ++ a ++ "\r\n"
 
 -- Exercise 4
 countEvents :: Calendar -> Int
