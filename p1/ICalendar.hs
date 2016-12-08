@@ -1,12 +1,15 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns, RecordWildCards #-}
 
 module ICalendar where
 
-import Prelude hiding ((<*), (*>), (<$))
+import Prelude hiding ((<*), (*>), (<$), sequence)
 
 import Control.Monad (replicateM)
 import Data.Char (isUpper)
-import Data.Maybe (listToMaybe)
+import Data.List
+import Data.Maybe (isJust, listToMaybe)
+import System.IO
+import Text.Printf (printf)
 
 import ParseLib.Abstract
 
