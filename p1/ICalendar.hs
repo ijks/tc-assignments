@@ -15,6 +15,34 @@ data DateTime = DateTime
     , utc :: Bool
     } deriving (Eq, Ord)
 
+printDigits :: Int -> Int -> String
+printDigits n = printf $ "%0" ++ show n ++ "d"
+
+printDate :: Date -> String
+printDate (Date y m d) =
+    concat
+        [ printDigits 4 $ unYear y
+        , printDigits 2 $ unMonth m
+        , printDigits 2 $ unDay d
+        ]
+
+printTime :: Time -> String
+printTime (Time h m s) =
+    concat
+        [ printDigits 2 $ unHour h
+        , printDigits 2 $ unMinute m
+        , printDigits 2 $ unSecond s
+        ]
+
+printDateTime :: DateTime -> String
+printDateTime (DateTime d t u) =
+    concat
+        [ printDate d
+        , "T"
+        , printTime t
+        , if u then "Z" else ""
+        ]
+
 data Date = Date
     { year  :: Year
     , month :: Month
