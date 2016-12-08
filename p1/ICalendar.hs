@@ -274,18 +274,28 @@ printVEvent VEvent { .. } =
 
 -- Exercise 4
 countEvents :: Calendar -> Int
-countEvents = undefined
+countEvents Calendar { events } = length events
 
 findEvents :: DateTime -> Calendar -> [VEvent]
-findEvents = undefined
+findEvents dt Calendar { events } = filter checkDate events
+    where
+        checkDate event @ VEvent { dtStart, dtEnd } = dtStart <= dt && dt < dtEnd
 
 checkOverlapping :: Calendar -> Bool
-checkOverlapping = undefined
+checkOverlapping Calendar { events } = 0 < length 
+    [ (a, b)
+    | a <- events
+    , b <- events
+    , overlap a b
+    ] 
+    where 
+        overlap a b =
+            dtStart a < startB && startB < dtEnd a
+            where
+                startB = dtStart b
 
 timeSpent :: String -> Calendar -> Int
-timeSpent = undefined
-
-
+timeSpent s Calendar { events } = undefined
 
 -- Exercise 5
 ppMonth :: Year -> Month -> Calendar -> String
