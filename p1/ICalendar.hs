@@ -234,9 +234,14 @@ parseCalendar = do
     end "VCALENDAR"
     return Calendar { prodId, events }
 
+
 -- Exercise 2
 readCalendar :: FilePath -> IO (Maybe Calendar)
-readCalendar = undefined
+readCalendar path = do
+    handle <- openFile path ReadMode
+    hSetNewlineMode handle noNewlineTranslation
+    file <- hGetContents handle
+    return $ recognizeCalendar file
 
 
 -- Exercise 3
