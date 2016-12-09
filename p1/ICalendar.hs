@@ -211,9 +211,9 @@ parseEvent = flip VEvent
     <*> (property "DTSTAMP" *> datetime)
     <*> (property "DTSTART" *> datetime)
     <*> (property "DTEND" *> datetime)
-    <*> (optional (property "DESCRIPTION" *> text))
-    <*> (optional (property "SUMMARY" *> text))
-    <*> (optional (property "LOCATION" *> text))
+    <*> optional (property "DESCRIPTION" *> text)
+    <*> optional (property "SUMMARY" *> text)
+    <*> optional (property "LOCATION" *> text)
     <*  end "VEVENT"
 
 parseCalendar :: Parser Token Calendar
