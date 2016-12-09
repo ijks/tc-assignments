@@ -287,7 +287,7 @@ days (Date (Year year) (Month month) (Day day)) =
     where
         leapYear = (year `mod` 4 == 0)
             && ((year `mod` 400 == 0) || (year `mod` 100 /= 0))
-        monthTotal m = sum . fmap monthLength $ [0 .. m]
+        monthTotal m = sum . fmap monthLength $ [1 .. m]
         monthLength m =
             [31, if leapYear then 29 else 28,
              31, 30, 31, 30, 31, 31, 30, 31, 30, 31] !! (m - 1)
@@ -296,7 +296,7 @@ days (Date (Year year) (Month month) (Day day)) =
 
 seconds :: Time -> Int
 seconds (Time (Hour hour) (Minute minute) (Second second)) =
-    hour * 24 * 60 + minute * 60 + second
+    hour * 60 * 60 + minute * 60 + second
 
 totalSeconds :: DateTime -> Int
 totalSeconds (DateTime date time _) =
