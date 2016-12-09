@@ -12,6 +12,7 @@ import Data.List
 import Data.Maybe (isJust, listToMaybe, mapMaybe)
 import System.IO
 import Text.Printf (printf)
+import Text.PrettyPrint hiding (empty)
 
 import ParseLib.Abstract
 import qualified Text.PrettyPrint as PP
@@ -315,3 +316,37 @@ timeSpent s = sum . fmap duration . withSummary s . events
 
 ppMonth :: Year -> Month -> Calendar -> PP.Doc
 ppMonth = undefined
+
+
+
+
+
+between :: [a] -> [a] -> [a]
+between x y = x ++ y ++ x
+
+intercalate2 :: [a] -> [[a]] -> [a]
+intercalate2 x = between x . intercalate x
+
+textOfLength :: Int -> (String, String) -> String
+textOfLength n (a, b) = a ++ spaces ++ b
+    where 
+        spaces = replicate (n - length a - length b) ' '
+
+weekDays :: [String]
+weekDays = 
+    [ "Monday"
+    , "Tuesday"
+    , "Wednesday"
+    , "Thursday"
+    , "Friday"
+    , "Saturday"
+    , "Sunday"
+    ]
+
+dayOfWeek :: Date -> Int
+dayOfWeek (Date (Year y) (Month m) (Day d)) =
+    ( y' + y' // 4 - y' // 100 + y' // 400 + monthValue !! (m - 1) + d - 1) `mod` 7
+    where
+        (//) = div
+        y' = y - if m < 3 then 1 else 0
+        monthValue = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4]
