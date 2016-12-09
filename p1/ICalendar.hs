@@ -362,7 +362,7 @@ leapYear year = (year `mod` 4 == 0)
 
 monthLength :: Int -> Int -> Int
 monthLength year month =
-    [31, if leapYear year then 29 else 28, 31, 30, 
+    [31, if leapYear year then 29 else 28, 31, 30,
      31, 30, 31, 31, 30, 31, 30, 31] !! (month - 1)
 
 days :: Date -> Int
@@ -407,11 +407,11 @@ intercalate2 x = between x . intercalate x
 
 textOfLength :: Int -> (String, String) -> String
 textOfLength n (a, b) = a ++ spaces ++ b
-    where 
+    where
         spaces = replicate (n - length a - length b) ' '
 
 weekDays :: [String]
-weekDays = 
+weekDays =
     [ "Monday"
     , "Tuesday"
     , "Wednesday"
