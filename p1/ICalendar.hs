@@ -22,6 +22,31 @@ data DateTime = DateTime
     , utc :: Bool
     } deriving (Eq, Ord)
 
+fromDigits :: [Int] -> Int
+fromDigits = foldl (\r d -> r * 10 + d) 0
+
+parseDigits :: Int -> Parser Char Int
+parseDigits n = fromDigits <$> n `replicateM` newdigit
+
+parseDate :: Parser Char Date
+parseDate = Date
+    <$> (Year <$> parseDigits 4)
+    <*> (Month <$> parseDigits 2)
+    <*> (Day <$> parseDigits 2)
+
+parseTime :: Parser Char Time
+parseTime = Time
+    <$> (Hour <$> parseDigits 2)
+    <*> (Minute <$> parseDigits 2)
+    <*> (Second <$> parseDigits 2)
+
+parseDateTime :: Parser Char DateTime
+parseDateTime = DateTime
+    <$> parseDate
+    <*  symbol 'T'
+    <*> parseTime
+    <*> (isJust <$> optional (symbol 'Z'))
+
 printDigits :: Int -> Int -> String
 printDigits n = printf $ "%0" ++ show n ++ "d"
 
@@ -97,7 +122,7 @@ data VEvent = VEvent
 
 
 run :: Parser a b -> [a] -> Maybe b
-run p s = listToMaybe [p | (p, []) <- parse p s]
+run p s = listToMaybe [res | (res, []) <- parse p s]
 
 recognizeCalendar :: String -> Maybe Calendar
 recognizeCalendar s = run scanCalendar s >>= run parseCalendar
@@ -105,6 +130,7 @@ recognizeCalendar s = run scanCalendar s >>= run parseCalendar
 -- "Main" block, DO NOT EDIT.
 -- If you want to run the parser + pretty-printing, rename this module (first line) to "Main".
 -- DO NOT forget to rename the module back to "ICalendar" before submitting to DomJudge.
+main :: IO ()
 main = do
     res <- readCalendar "examples/rooster_infotc.ics"
     putStrLn . PP.render $ maybe
@@ -113,31 +139,6 @@ main = do
         res
 
 -- Exercise 1
-
-fromDigits :: [Int] -> Int
-fromDigits = foldl (\r d -> r * 10 + d) 0
-
-parseDigits :: Int -> Parser Char Int
-parseDigits n = fromDigits <$> n `replicateM` newdigit
-
-parseDate :: Parser Char Date
-parseDate = Date
-    <$> (Year <$> parseDigits 4)
-    <*> (Month <$> parseDigits 2)
-    <*> (Day <$> parseDigits 2)
-
-parseTime :: Parser Char Time
-parseTime = Time
-    <$> (Hour <$> parseDigits 2)
-    <*> (Minute <$> parseDigits 2)
-    <*> (Second <$> parseDigits 2)
-
-parseDateTime :: Parser Char DateTime
-parseDateTime = DateTime
-    <$> parseDate
-    <*  symbol 'T'
-    <*> parseTime
-    <*> (isJust <$> optional (symbol 'Z'))
 
 data Token
     = Begin String
@@ -225,6 +226,7 @@ parseCalendar = do
 
 
 -- Exercise 2
+
 readCalendar :: FilePath -> IO (Maybe Calendar)
 readCalendar path = do
     handle <- openFile path ReadMode
@@ -232,43 +234,45 @@ readCalendar path = do
     file <- hGetContents handle
     return $ recognizeCalendar file
 
-
 -- Exercise 3
 -- DO NOT use a derived Show instance. Your printing style needs to be nicer than that :)
+
 printCalendar :: Calendar -> String
 printCalendar Calendar { .. } =
-    concat $ map (++"\r\n")
-    [ "BEGIN:VCALENDAR"
-    , "PRODID:" ++ prodId
-    , "VERSION:2.0"
-    ] ++ map printVEvent events ++
-    ["END:VCALENDAR\r\n"]
+    concat $ map (++ "\r\n")
+        [ "BEGIN:VCALENDAR"
+        , "PRODID:" ++ prodId
+        , "VERSION:2.0"
+        ]
+        ++ map printVEvent events
+        ++ ["END:VCALENDAR\r\n"]
 
+printVEvent :: VEvent -> String
 printVEvent VEvent { .. } =
-    concat $ map (++"\r\n")
-    [ "BEGIN:VEVENT"
-    , "UID:" ++ uid
-    , "DTSTAMP:" ++ printDateTime dtStamp
-    , "DTSTART:" ++ printDateTime dtStart
-    , "DTEND:" ++ printDateTime dtEnd
-    ] ++
-    [ maybeShow "DESCRIPTION:" description
-    , maybeShow "SUMMARY:" summary
-    , maybeShow "LOCATION:" location
-    ] ++
-    [ "END:VEVENT\r\n"]
+    concat $ map (++ "\r\n")
+        [ "BEGIN:VEVENT"
+        , "UID:" ++ uid
+        , "DTSTAMP:" ++ printDateTime dtStamp
+        , "DTSTART:" ++ printDateTime dtStart
+        , "DTEND:" ++ printDateTime dtEnd
+        , maybeShow "DESCRIPTION:" description
+        , maybeShow "SUMMARY:" summary
+        , maybeShow "LOCATION:" location
+        , "END:VEVENT"
+        ]
     where
         maybeShow _ Nothing = ""
-        maybeShow s (Just a) = s ++ a ++ "\r\n"
+        maybeShow s (Just a) = s ++ a
 
 -- Exercise 4
+
 countEvents :: Calendar -> Int
 countEvents Calendar { events } = length events
 
 findEvents :: DateTime -> Calendar -> [VEvent]
 findEvents dt Calendar { events } = filter checkDate events
     where
-        checkDate event @ VEvent { dtStart, dtEnd } = dtStart <= dt && dt < dtEnd
+        checkDate VEvent { dtStart, dtEnd } = dtStart <= dt && dt < dtEnd
 
 checkOverlapping :: Calendar -> Bool
 checkOverlapping Calendar { events } = 0 < length
@@ -287,5 +291,6 @@ timeSpent :: String -> Calendar -> Int
 timeSpent s Calendar { events } = undefined
 
 -- Exercise 5
+
 ppMonth :: Year -> Month -> Calendar -> PP.Doc
 ppMonth = undefined
