@@ -470,7 +470,6 @@ divider width length = (++ "\n")
 
 between :: [a] -> [a] -> [a]
 between x y = x ++ y ++ x
->>>>>>> Halfway pretty-printing
 
 weekDays :: [String]
 weekDays =
