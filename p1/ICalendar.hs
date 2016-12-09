@@ -204,17 +204,79 @@ parseCalprops =
             v <- text
             if v == "2.0" then pure () else empty
 
+data Property
+    = DTStamp DateTime
+    | DTStart DateTime
+    | DTEnd DateTime
+    | UID String
+    | Description String
+    | Summary String
+    | Location String
+    deriving (Show)
+
+isDTStamp, isDTStart, isDTEnd, isUID, isDescription, isSummary, isLocation
+    :: Property -> Bool
+isDTStamp (DTStamp _) = True
+isDTStamp _ = False
+isDTStart (DTStart _) = True
+isDTStart _ = False
+isDTEnd (DTEnd _) = True
+isDTEnd _ = False
+isUID (UID _) = True
+isUID _ = False
+isDescription (Description _) = True
+isDescription _ = False
+isSummary (Summary _) = True
+isSummary _ = False
+isLocation (Location _) = True
+isLocation _ = False
+
+parseProperty :: Parser Token Property
+parseProperty = choice
+    [ DTStamp <$> (property "DTSTAMP" *> datetime)
+    , DTStart <$> (property "DTSTART" *> datetime)
+    , DTEnd <$> (property "DTEND" *> datetime)
+    , UID <$> (property "UID" *> text)
+    , Description <$> (property "DESCRIPTION" *> text)
+    , Summary <$> (property "SUMMARY" *> text)
+    , Location <$> (property "LOCATION" *> text)
+    ]
+
+findOne :: (a -> Bool) -> [a] -> Maybe a
+findOne p xs = case filter p xs of
+    [x] -> Just x
+    _ -> Nothing
+
+findOptional :: (a -> Bool) -> [a] -> Maybe (Maybe a)
+findOptional p xs = case filter p xs of
+    [] -> Just Nothing
+    [x] -> Just (Just x)
+    _ -> Nothing
+
+makeEvent :: [Property] -> Maybe VEvent
+makeEvent ps = do
+    let getDescr (Description d) = d
+    let getSummary (Summary s) = s
+    let getLocation (Location l) = l
+
+    DTStamp dtStamp <- findOne isDTStamp ps
+    DTStart dtStart <- findOne isDTStart ps
+    DTEnd dtEnd <- findOne isDTEnd ps
+    UID uid <- findOne isUID ps
+    description <- fmap getDescr <$> findOptional isDescription ps
+    summary <-  fmap getSummary <$> findOptional isSummary ps
+    location <- fmap getLocation <$> findOptional isLocation ps
+
+    return
+        VEvent { dtStamp, dtStart, dtEnd, uid, description, summary, location }
+
 parseEvent :: Parser Token VEvent
-parseEvent = flip VEvent
-    <$  begin "VEVENT"
-    <*> (property "UID" *> text)
-    <*> (property "DTSTAMP" *> datetime)
-    <*> (property "DTSTART" *> datetime)
-    <*> (property "DTEND" *> datetime)
-    <*> optional (property "DESCRIPTION" *> text)
-    <*> optional (property "SUMMARY" *> text)
-    <*> optional (property "LOCATION" *> text)
-    <*  end "VEVENT"
+parseEvent = begin "VEVENT" *> parseProperties <* end "VEVENT"
+    where
+        parseProperties = many parseProperty >>= \ps ->
+            case makeEvent ps of
+                Just e -> pure e
+                Nothing -> empty
 
 parseCalendar :: Parser Token Calendar
 parseCalendar = do
