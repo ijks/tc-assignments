@@ -22,6 +22,9 @@ data DateTime = DateTime
     , utc :: Bool
     } deriving (Eq, Ord)
 
+instance Show DateTime where
+    show = printDateTime
+
 fromDigits :: [Int] -> Int
 fromDigits = foldl (\r d -> r * 10 + d) 0
 
@@ -110,6 +113,9 @@ data Calendar = Calendar
     , events :: [VEvent]
     } deriving Eq
 
+instance Show Calendar where
+    show = printCalendar
+
 data VEvent = VEvent
     { dtStamp     :: DateTime
     , uid         :: String
@@ -120,6 +126,8 @@ data VEvent = VEvent
     , location    :: Maybe String
     } deriving Eq
 
+instance Show VEvent where
+    show = printVEvent
 
 run :: Parser a b -> [a] -> Maybe b
 run p s = listToMaybe [res | (res, []) <- parse p s]
@@ -146,8 +154,7 @@ data Token
     | Property String
     | Text String
     | DT DateTime
-    deriving (Eq, Ord)
-
+    deriving (Eq, Ord, Show)
 
 crlf :: Parser Char String
 crlf = token "\r\n"
