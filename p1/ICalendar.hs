@@ -162,7 +162,7 @@ scanEnd :: Parser Char Token
 scanEnd = End <$> (token "END:" *> some (satisfy isUpper)) <* crlf
 
 scanText :: Parser Char Token
-scanText = Text <$> (some $ satisfy (`notElem` ['\r', '\n'])) <* crlf
+scanText = Text <$> some (satisfy (`notElem` ['\r', '\n'])) <* crlf
 
 scanDT :: Parser Char Token
 scanDT = DT <$> parseDateTime <* crlf
@@ -248,7 +248,7 @@ printCalendar Calendar { .. } =
 
 printVEvent :: VEvent -> String
 printVEvent VEvent { .. } =
-    concat $ map (++ "\r\n")
+    concatMap (++ "\r\n")
         [ "BEGIN:VEVENT"
         , "UID:" ++ uid
         , "DTSTAMP:" ++ printDateTime dtStamp
@@ -274,7 +274,7 @@ findEvents dt = filter checkDate . events
         checkDate VEvent { dtStart, dtEnd } = dtStart <= dt && dt < dtEnd
 
 hasOverlapping :: Calendar -> Bool
-hasOverlapping = (> 0) . length . overlapping . events
+hasOverlapping = not . null . overlapping . events
     where
         overlapping es =
             [ (a, b) | a <- es , b <- es
@@ -286,7 +286,7 @@ days (Date (Year year) (Month month) (Day day)) =
     day + monthTotal month + yearTotal year
     where
         leapYear = (year `mod` 4 == 0)
-            && ((year `mod` 400 == 0) || not (year `mod` 100 == 0))
+            && ((year `mod` 400 == 0) || (year `mod` 100 /= 0))
         monthTotal m = sum . fmap monthLength $ [0 .. m]
         monthLength m =
             [31, if leapYear then 29 else 28,
