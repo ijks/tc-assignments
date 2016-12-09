@@ -12,7 +12,6 @@ import Data.List
 import Data.Maybe (isJust, listToMaybe, mapMaybe)
 import System.IO
 import Text.Printf (printf)
-import Text.PrettyPrint hiding (empty)
 
 import ParseLib.Abstract
 import qualified Text.PrettyPrint as PP
@@ -282,18 +281,22 @@ hasOverlapping = not . null . overlapping . events
             , dtStart a < dtStart b && dtStart b < dtEnd a
             ]
 
+leapYear :: Int -> Bool
+leapYear year = (year `mod` 4 == 0)
+    && ((year `mod` 400 == 0) || (year `mod` 100 /= 0))
+
+monthLength :: Int -> Int -> Int
+monthLength year month =
+    [31, if leapYear year then 29 else 28, 31, 30, 
+     31, 30, 31, 31, 30, 31, 30, 31] !! (month - 1)
+
 days :: Date -> Int
 days (Date (Year year) (Month month) (Day day)) =
     day + monthTotal month + yearTotal year
     where
-        leapYear = (year `mod` 4 == 0)
-            && ((year `mod` 400 == 0) || (year `mod` 100 /= 0))
-        monthTotal m = sum . fmap monthLength $ [1 .. m]
-        monthLength m =
-            [31, if leapYear then 29 else 28,
-             31, 30, 31, 30, 31, 31, 30, 31, 30, 31] !! (m - 1)
+        monthTotal m = sum . fmap (monthLength year) $ [0 .. m]
         yearTotal y = sum . fmap yearLength $ [0 .. y]
-        yearLength y = if leapYear then 366 else 365
+        yearLength y = if leapYear year then 366 else 365
 
 seconds :: Time -> Int
 seconds (Time (Hour hour) (Minute minute) (Second second)) =
