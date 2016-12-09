@@ -317,20 +317,21 @@ printCalendar Calendar { .. } =
 
 printVEvent :: VEvent -> String
 printVEvent VEvent { .. } =
-    concatMap (++ "\r\n")
+    concat $ map (++ "\r\n")
         [ "BEGIN:VEVENT"
         , "UID:" ++ uid
         , "DTSTAMP:" ++ printDateTime dtStamp
         , "DTSTART:" ++ printDateTime dtStart
         , "DTEND:" ++ printDateTime dtEnd
-        , maybeShow "DESCRIPTION:" description
+        ] ++
+        [ maybeShow "DESCRIPTION:" description
         , maybeShow "SUMMARY:" summary
         , maybeShow "LOCATION:" location
-        , "END:VEVENT"
         ]
+        ++ ["END:VEVENT\r\n"]
     where
         maybeShow _ Nothing = ""
-        maybeShow s (Just a) = s ++ a
+        maybeShow s (Just a) = s ++ a ++ "\r\n"
 
 -- Exercise 4
 
