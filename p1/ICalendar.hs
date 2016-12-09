@@ -1,4 +1,6 @@
-{-# LANGUAGE NamedFieldPuns, RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module ICalendar where
 
@@ -142,24 +144,18 @@ parseDateTime = DateTime
 data Token
     = Begin String
     | End String
-    | Property String Info
+    | Property String
+    | Text String
+    | DT DateTime
     deriving (Eq, Ord)
 
-data Info
-    = DateInfo DateTime
-    | TextInfo String
-    deriving (Eq, Ord)
 
 crlf :: Parser Char String
 crlf = token "\r\n"
 
 scanProperty :: Parser Char Token
-scanProperty = Property 
-    <$> some (satisfy isUpper) <* symbol ':' 
-    <*> (DateInfo <$> parseDateTime <|> TextInfo <$> text) 
-    <* crlf
-    where
-        text = some (satisfy (`notElem` "\r\n"))
+scanProperty = Property
+    <$> some (satisfy isUpper) <* symbol ':'
 
 scanBegin :: Parser Char Token
 scanBegin = Begin <$> (token "BEGIN:" *> some (satisfy isUpper)) <* crlf
@@ -167,37 +163,23 @@ scanBegin = Begin <$> (token "BEGIN:" *> some (satisfy isUpper)) <* crlf
 scanEnd :: Parser Char Token
 scanEnd = End <$> (token "END:" *> some (satisfy isUpper)) <* crlf
 
+scanText :: Parser Char Token
+scanText = Text <$> (some $ satisfy (`notElem` ['\r', '\n'])) <* crlf
+
+scanDT :: Parser Char Token
+scanDT = DT <$> parseDateTime <* crlf
+
 scanCalendar :: Parser Char [Token]
 scanCalendar = many $ choice
     [ scanBegin
     , scanEnd
     , scanProperty
+    , scanDT
+    , scanText
     ]
 
-mapMaybe :: (a -> Maybe b) -> Parser s a -> Parser s b
-mapMaybe f p = p >>= \x ->
-    case f x of
-        Just y -> succeed y
-        Nothing -> empty
-
-satisfyMap :: (s -> Maybe a) -> Parser s a
-satisfyMap f = mapMaybe f anySymbol
-
-textProperty :: String -> Parser Token String
-textProperty p = satisfyMap $ \t ->
-    case t of
-        Property p' (TextInfo s)
-            | p' == p -> Just s
-            | otherwise -> Nothing
-        _ -> Nothing
-
-dateProperty :: String -> Parser Token DateTime
-dateProperty p = satisfyMap $ \t ->
-    case t of
-        Property p' (DateInfo s)
-            | p' == p -> Just s
-            | otherwise -> Nothing
-        _ -> Nothing
+property :: String -> Parser Token Token
+property p = satisfy (== Property p)
 
 begin :: String -> Parser Token Token
 begin p = satisfy (== Begin p)
@@ -205,25 +187,35 @@ begin p = satisfy (== Begin p)
 end :: String -> Parser Token Token
 end p = satisfy (== End p)
 
+text :: Parser Token String
+text = anySymbol >>= \case
+    Text t -> pure t
+    _ -> empty
+
+datetime :: Parser Token DateTime
+datetime = anySymbol >>= \case
+    DT t -> pure t
+    _ -> empty
+
 parseCalprops :: Parser Token String
-parseCalprops = 
+parseCalprops =
     (prodId <* version) <|> (version *> prodId)
     where
-        prodId = textProperty "PRODID"
-        version = do
-            v <- textProperty "VERSION"
-            if v == "2.0" then succeed () else empty
+        prodId = property "PRODID" *> text
+        version = property "VERSION" *> do
+            v <- text
+            if v == "2.0" then pure () else empty
 
 parseEvent :: Parser Token VEvent
 parseEvent = flip VEvent
     <$  begin "VEVENT"
-    <*> textProperty "UID"
-    <*> dateProperty "DTSTAMP"
-    <*> dateProperty "DTSTART"
-    <*> dateProperty "DTEND"
-    <*> optional (textProperty "DESCRIPTION")
-    <*> optional (textProperty "SUMMARY")
-    <*> optional (textProperty "LOCATION")
+    <*> (property "UID" *> text)
+    <*> (property "DTSTAMP" *> datetime)
+    <*> (property "DTSTART" *> datetime)
+    <*> (property "DTEND" *> datetime)
+    <*> (optional (property "DESCRIPTION" *> text))
+    <*> (optional (property "SUMMARY" *> text))
+    <*> (optional (property "LOCATION" *> text))
     <*  end "VEVENT"
 
 parseCalendar :: Parser Token Calendar
