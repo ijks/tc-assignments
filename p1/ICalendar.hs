@@ -341,7 +341,7 @@ countEvents = length . events
 findEvents :: DateTime -> Calendar -> [VEvent]
 findEvents dt = filter checkDate . events
     where
-        checkDate VEvent { dtStart, dtEnd } = dtStart <= dt && dt < dtEnd
+        checkDate VEvent { dtStart, dtEnd } = dtStart <= dt && dt <= dtEnd
 
 hasOverlapping :: Calendar -> Bool
 hasOverlapping = not . null . overlapping . events
