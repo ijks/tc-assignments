@@ -10,6 +10,7 @@ import Control.Monad (replicateM)
 import Data.Char (isUpper)
 import Data.List
 import Data.Maybe (isJust, listToMaybe, mapMaybe)
+import Data.Ord (comparing)
 import System.IO
 import Text.Printf (printf)
 
@@ -140,11 +141,9 @@ recognizeCalendar s = run scanCalendar s >>= run parseCalendar
 -- DO NOT forget to rename the module back to "ICalendar" before submitting to DomJudge.
 main :: IO ()
 main = do
-    res <- readCalendar "examples/rooster_infotc.ics"
-    putStrLn . PP.render $ maybe
-        (PP.text "Calendar parsing error")
-        (ppMonth (Year 2012) (Month 11))
-        res
+    res <- readCalendar "examples/bastille.ics"
+    putStrLn $ maybe "Calendar parsing error"
+        (ppMonth (Year 2012) (Month 11)) res
 
 -- Exercise 1
 
@@ -392,23 +391,86 @@ timeSpent s = sum . fmap duration . withSummary s . events
 
 -- Exercise 5
 
-ppMonth :: Year -> Month -> Calendar -> PP.Doc
-ppMonth = undefined
+ppMonth :: Year -> Month -> Calendar -> String
+ppMonth year @ (Year y) month @ (Month m) Calendar { .. } =
+    between "\n" (months !! (m - 1) ++ " " ++ show y)
+    ++ "\n" ++ row width (map rightAligned weekDays)
+    ++ concatMap oneWeek [0 .. weeks]
+    where
+        weeks = if monthLength' == 28 && start == 0 then 3 else 4
+        monthLength' = monthLength y m
+        oneWeek n = week width 4 (map showDay (take 7 [1 + 7 * n - start..])) [[[]]]
+        start = dayOfWeek $ Date year month (Day 1)
+        showDay n
+            | n > 0 && n <= monthLength' = show n
+            | otherwise = ""
 
+        events' :: [(VEvent, (Maybe Int, Maybe Int))]
+        events' = mapMaybe (withinMonth year month) events
 
+        sameDayEvents = sortBy (comparing (dtStart . fst)) 
+            $ filter (\case 
+                (_, (Just a, Just b)) -> a == b
+                _ -> False) events'
 
+        -- sortBy (comparing (dtStart . fst)) 
 
+        showEvent (Just a, Just b) = a 
+
+        width = 16
+
+ppTime :: Time -> String
+ppTime (Time (Hour h) (Minute m) _) =
+    show h ++ ":" ++ show m
+
+withinMonth :: Year -> Month -> VEvent -> Maybe (VEvent, (Maybe Int, Maybe Int))
+withinMonth y m event @ VEvent { .. }
+    | startAndEnd == (Nothing, Nothing) = Nothing 
+    | otherwise = Just (event, startAndEnd)
+    where
+        startAndEnd = (inMonth dtStart, inMonth dtEnd)
+        inMonth = dayInMonth y m . date
+
+dayInMonth :: Year -> Month -> Date -> Maybe Int
+dayInMonth y m (Date year month (Day d))
+    | y == year && m == month = Just d
+    | otherwise = Nothing
+
+week :: Int -> Int -> [String] -> [[String]] -> String
+week width height names events = divider (width + 2) 7
+    ++ row' names
+   -- ++ (concat $ map row' (map (padded "" 7) $ map leftAligned events))
+    where
+        row' = row width . map leftAligned
+        height' = maximum $ map length events
+        emptyRow = row width $ replicate 7 emptyString
+
+padded :: a -> Int -> ([a], [a]) -> [a]
+padded a n (l, r) = l ++ replicate (n - length l - length r) a ++ r
+
+leftAligned :: Monoid a => a -> (a, a)
+leftAligned s = (s, mempty)
+
+rightAligned :: Monoid a => a -> (a, a)
+rightAligned s = (mempty, s)
+
+emptyString :: Monoid a => (a, a)
+emptyString = (mempty, mempty)
+
+row :: Int -> [(String, String)] -> String
+row width = (++ "\n")
+    . intercalate "|" 
+    . map (between " " . padded ' ' width)
+
+divider :: Int -> Int -> String
+divider width length = (++ "\n")
+    . intercalate "+" 
+    $ replicate length 
+    $ replicate width '-'
 
 between :: [a] -> [a] -> [a]
 between x y = x ++ y ++ x
-
-intercalate2 :: [a] -> [[a]] -> [a]
-intercalate2 x = between x . intercalate x
-
-textOfLength :: Int -> (String, String) -> String
-textOfLength n (a, b) = a ++ spaces ++ b
-    where
-        spaces = replicate (n - length a - length b) ' '
+>>>>>>> Halfway pretty-printing
 
 weekDays :: [String]
 weekDays =
@@ -419,6 +481,22 @@ weekDays =
     , "Friday"
     , "Saturday"
     , "Sunday"
+    ]
+
+months :: [String]
+months = 
+    [ "January"
+    , "February"
+    , "March"
+    , "April"
+    , "May"
+    , "June"
+    , "July"
+    , "August"
+    , "September"
+    , "October"
+    , "November"
+    , "December"
     ]
 
 dayOfWeek :: Date -> Int
