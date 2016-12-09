@@ -9,7 +9,7 @@ import Prelude hiding ((<*), (*>), (<$), sequence)
 import Control.Monad (replicateM)
 import Data.Char (isUpper)
 import Data.List
-import Data.Maybe (isJust, listToMaybe)
+import Data.Maybe (isJust, listToMaybe, mapMaybe)
 import System.IO
 import Text.Printf (printf)
 
@@ -224,7 +224,6 @@ parseCalendar = do
     end "VCALENDAR"
     return Calendar { prodId, events }
 
-
 -- Exercise 2
 
 readCalendar :: FilePath -> IO (Maybe Calendar)
@@ -267,28 +266,50 @@ printVEvent VEvent { .. } =
 -- Exercise 4
 
 countEvents :: Calendar -> Int
-countEvents Calendar { events } = length events
+countEvents = length . events
 
 findEvents :: DateTime -> Calendar -> [VEvent]
-findEvents dt Calendar { events } = filter checkDate events
+findEvents dt = filter checkDate . events
     where
         checkDate VEvent { dtStart, dtEnd } = dtStart <= dt && dt < dtEnd
 
-checkOverlapping :: Calendar -> Bool
-checkOverlapping Calendar { events } = 0 < length
-    [ (a, b)
-    | a <- events
-    , b <- events
-    , overlap a b
-    ]
+hasOverlapping :: Calendar -> Bool
+hasOverlapping = (> 0) . length . overlapping . events
     where
-        overlap a b =
-            dtStart a < startB && startB < dtEnd a
-            where
-                startB = dtStart b
+        overlapping es =
+            [ (a, b) | a <- es , b <- es
+            , dtStart a < dtStart b && dtStart b < dtEnd a
+            ]
+
+days :: Date -> Int
+days (Date (Year year) (Month month) (Day day)) =
+    day + monthTotal month + yearTotal year
+    where
+        leapYear = (year `mod` 4 == 0)
+            && ((year `mod` 400 == 0) || not (year `mod` 100 == 0))
+        monthTotal m = sum . fmap monthLength $ [0 .. m]
+        monthLength m =
+            [31, if leapYear then 29 else 28,
+             31, 30, 31, 30, 31, 31, 30, 31, 30, 31] !! (m - 1)
+        yearTotal y = sum . fmap yearLength $ [0 .. y]
+        yearLength y = if leapYear then 366 else 365
+
+seconds :: Time -> Int
+seconds (Time (Hour hour) (Minute minute) (Second second)) =
+    hour * 24 * 60 + minute * 60 + second
+
+totalSeconds :: DateTime -> Int
+totalSeconds (DateTime date time _) =
+    days date * 24 * 60 * 60 + seconds time
 
 timeSpent :: String -> Calendar -> Int
-timeSpent s Calendar { events } = undefined
+timeSpent s = sum . fmap duration . withSummary s . events
+    where
+        duration VEvent { dtStart, dtEnd } =
+            (totalSeconds dtEnd - totalSeconds dtStart) `div` 60
+        withSummary s = mapMaybe $ \e -> do
+            s' <- summary e
+            if s' == s then Just e else Nothing
 
 -- Exercise 5
 
