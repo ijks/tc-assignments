@@ -169,7 +169,12 @@ scanEnd :: Parser Char Token
 scanEnd = End <$> (token "END:" *> some (satisfy isUpper)) <* crlf
 
 scanText :: Parser Char Token
-scanText = Text <$> some (satisfy (`notElem` ['\r', '\n'])) <* crlf
+scanText = Text
+    <$> some
+        ( satisfy (`notElem` ['\r', '\n'])
+        <|> token "\r\n" *> (symbol ' ' <|> symbol '\t')
+        )
+    <* crlf
 
 scanDT :: Parser Char Token
 scanDT = DT <$> parseDateTime <* crlf
