@@ -14,6 +14,7 @@ import System.IO
 import Text.Printf (printf)
 
 import ParseLib.Abstract
+import qualified Text.PrettyPrint as PP
 
 data DateTime = DateTime
     { date :: Date
@@ -101,18 +102,15 @@ run p s = listToMaybe [p | (p, []) <- parse p s]
 recognizeCalendar :: String -> Maybe Calendar
 recognizeCalendar s = run scanCalendar s >>= run parseCalendar
 
-
 -- "Main" block, DO NOT EDIT.
 -- If you want to run the parser + pretty-printing, rename this module (first line) to "Main".
 -- DO NOT forget to rename the module back to "ICalendar" before submitting to DomJudge.
 main = do
     res <- readCalendar "examples/rooster_infotc.ics"
-    putStrLn . render $ maybe (text "Calendar parsing error") (ppMonth (Year 2012) (Month 11)) res
-    where
-        -- Are these functions supposed to be in the prelude?
-        render = undefined
-        text = undefined
-
+    putStrLn . PP.render $ maybe
+        (PP.text "Calendar parsing error")
+        (ppMonth (Year 2012) (Month 11))
+        res
 
 -- Exercise 1
 
@@ -154,8 +152,7 @@ crlf :: Parser Char String
 crlf = token "\r\n"
 
 scanProperty :: Parser Char Token
-scanProperty = Property
-    <$> some (satisfy isUpper) <* symbol ':'
+scanProperty = Property <$> some (satisfy isUpper) <* symbol ':'
 
 scanBegin :: Parser Char Token
 scanBegin = Begin <$> (token "BEGIN:" *> some (satisfy isUpper)) <* crlf
@@ -239,15 +236,15 @@ readCalendar path = do
 -- Exercise 3
 -- DO NOT use a derived Show instance. Your printing style needs to be nicer than that :)
 printCalendar :: Calendar -> String
-printCalendar Calendar { .. } = 
+printCalendar Calendar { .. } =
     concat $ map (++"\r\n")
     [ "BEGIN:VCALENDAR"
     , "PRODID:" ++ prodId
-    , "VERSION:2.0" 
-    ] ++ map printVEvent events ++ 
+    , "VERSION:2.0"
+    ] ++ map printVEvent events ++
     ["END:VCALENDAR\r\n"]
 
-printVEvent VEvent { .. } = 
+printVEvent VEvent { .. } =
     concat $ map (++"\r\n")
     [ "BEGIN:VEVENT"
     , "UID:" ++ uid
@@ -258,7 +255,7 @@ printVEvent VEvent { .. } =
     [ maybeShow "DESCRIPTION:" description
     , maybeShow "SUMMARY:" summary
     , maybeShow "LOCATION:" location
-    ] ++ 
+    ] ++
     [ "END:VEVENT\r\n"]
     where
         maybeShow _ Nothing = ""
@@ -274,13 +271,13 @@ findEvents dt Calendar { events } = filter checkDate events
         checkDate event @ VEvent { dtStart, dtEnd } = dtStart <= dt && dt < dtEnd
 
 checkOverlapping :: Calendar -> Bool
-checkOverlapping Calendar { events } = 0 < length 
+checkOverlapping Calendar { events } = 0 < length
     [ (a, b)
     | a <- events
     , b <- events
     , overlap a b
-    ] 
-    where 
+    ]
+    where
         overlap a b =
             dtStart a < startB && startB < dtEnd a
             where
@@ -290,5 +287,5 @@ timeSpent :: String -> Calendar -> Int
 timeSpent s Calendar { events } = undefined
 
 -- Exercise 5
-ppMonth :: Year -> Month -> Calendar -> String
+ppMonth :: Year -> Month -> Calendar -> PP.Doc
 ppMonth = undefined
