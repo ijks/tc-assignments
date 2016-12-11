@@ -9,7 +9,8 @@ import Prelude hiding ((<*), (*>), (<$), sequence)
 import Control.Monad (replicateM)
 import Data.Char (isUpper)
 import Data.List
-import Data.Maybe (isJust, listToMaybe, mapMaybe)
+import Data.Maybe (isJust, listToMaybe, mapMaybe, fromMaybe)
+import Data.Monoid
 import Data.Ord (comparing)
 import System.IO
 import Text.Printf (printf)
@@ -141,7 +142,7 @@ recognizeCalendar s = run scanCalendar s >>= run parseCalendar
 -- DO NOT forget to rename the module back to "ICalendar" before submitting to DomJudge.
 main :: IO ()
 main = do
-    res <- readCalendar "examples/bastille.ics"
+    res <- readCalendar "examples/rooster_infotc.ics"
     putStrLn $ maybe "Calendar parsing error"
         (ppMonth (Year 2012) (Month 11)) res
 
@@ -368,7 +369,7 @@ days :: Date -> Int
 days (Date (Year year) (Month month) (Day day)) =
     day + monthTotal month + yearTotal year
     where
-        monthTotal m = sum . fmap (monthLength year) $ [0 .. m]
+        monthTotal m = sum . fmap (monthLength year) $ [1 .. m]
         yearTotal y = sum . fmap yearLength $ [0 .. y]
         yearLength y = if leapYear year then 366 else 365
 
@@ -393,71 +394,141 @@ timeSpent s = sum . fmap duration . withSummary s . events
 
 ppMonth :: Year -> Month -> Calendar -> String
 ppMonth year @ (Year y) month @ (Month m) Calendar { .. } =
-    between "\n" (months !! (m - 1) ++ " " ++ show y)
-    ++ "\n" ++ row width (map rightAligned weekDays)
-    ++ concatMap oneWeek [0 .. weeks]
+    header ++ "\n" ++ dayNames ++ weeks
     where
-        weeks = if monthLength' == 28 && start == 0 then 3 else 4
+        header = between "\n" (months !! (m - 1) ++ " " ++ show y)
+        dayNames = row width (map rightAligned weekDays)
+        weeks = concatMap oneWeek [0 .. numberOfWeeks]
+        numberOfWeeks = if monthLength' == 28 && start == 0 then 3 else 4
         monthLength' = monthLength y m
-        oneWeek n = week width 4 (map showDay (take 7 [1 + 7 * n - start..])) [[[]]]
+
+        oneWeek n = week width (max (maximum $ map length es) 2) 
+            (map showDayNumber days) es
+            where
+                days = take 7 [1 + 7 * n - start..]
+                es = map (printEvent) days
+
         start = dayOfWeek $ Date year month (Day 1)
-        showDay n
-            | n > 0 && n <= monthLength' = show n
+
+        showDayNumber n
+            | inMonth n = show n
             | otherwise = ""
 
-        events' :: [(VEvent, (Maybe Int, Maybe Int))]
-        events' = mapMaybe (withinMonth year month) events
+        printEvent day = concatMap (map $ padded ' ' width) 
+            [ printToday ongoingEvent ongoingEvents
+            , printToday startEvent startEvents
+            , printToday dayEvent dayEvents
+            , printToday endEvent endEvents
+            ] 
+            where
+                printToday f xs = concatMap (f . snd) 
+                    $ sortBy (comparing $ dtStart . snd)
+                    $ (filter $ \(d, _) -> d == day) xs
 
-        sameDayEvents = sortBy (comparing (dtStart . fst)) 
-            $ filter (\case 
-                (_, (Just a, Just b)) -> a == b
-                _ -> False) events'
+        title e w = between " " $ shorten w $ fromMaybe "-" $ summary e
+        startTime e = ppTime $ time $ dtStart e
+        endTime e = ppTime $ time $ dtEnd e
 
-        -- sortBy (comparing (dtStart . fst)) 
+        normalTitle e = centerAligned $ title e (width - 2)
+        dayEvent e = 
+            [ normalTitle e
+            , Aligned (startTime e) "-" (endTime e)
+            ]
+        startEvent e =
+            [ normalTitle e
+            , leftAligned (startTime e) <> centerAligned "-"
+            ]
+        endEvent e =
+            [ normalTitle e
+            , centerAligned "-" <> rightAligned (endTime e)
+            ]
+        ongoingEvent e =
+            [ centerAligned $ between "-" $ title e (width - 4) ]
+        
+        width = 15
+        
+        (dayEvents, startEvents, ongoingEvents, endEvents) = 
+            tmap (filter $ \(d, e) -> inMonth d) 
+            $ splitEvents' events_ ([],[],[],[])
+            where
+                tmap f = \(a, b, c, d) -> (f a, f b, f c, f d)
 
-        showEvent (Just a, Just b) = a 
+                splitEvents' [] other = other
+                splitEvents' (((a, b), e) : es) (day, start, going, end)
+                    | a == b && inMonth a = 
+                        splitEvents' es 
+                            ( (a, e) : day
+                            , start, going, end)
+                    | otherwise = 
+                        splitEvents' es 
+                            ( day, (a, e) : start
+                            , inbetween ++ going, (b, e) : end)
+                    where
+                        inbetween = zip  [a + 1 .. b - 1] (repeat e)
 
-        width = 16
+                events_ = map (\e -> ((f $ dtStart e, f $ dtEnd e), e)) events
+                    where
+                        f = relativeDayNumber year month . date
+
+        separateEvents :: [(Int, b)] -> [(Int, [b])] -- TODO
+        separateEvents xs = zip [1..31] []
+
+        inMonth n = n > 0 && n <= monthLength'
 
 ppTime :: Time -> String
 ppTime (Time (Hour h) (Minute m) _) =
-    show h ++ ":" ++ show m
-
-withinMonth :: Year -> Month -> VEvent -> Maybe (VEvent, (Maybe Int, Maybe Int))
-withinMonth y m event @ VEvent { .. }
-    | startAndEnd == (Nothing, Nothing) = Nothing 
-    | otherwise = Just (event, startAndEnd)
+    doubleDigits h ++ ":" ++ doubleDigits m
     where
-        startAndEnd = (inMonth dtStart, inMonth dtEnd)
-        inMonth = dayInMonth y m . date
+        doubleDigits n = padded '0' 2 $ rightAligned $ show n
 
-dayInMonth :: Year -> Month -> Date -> Maybe Int
-dayInMonth y m (Date year month (Day d))
-    | y == year && m == month = Just d
-    | otherwise = Nothing
+relativeDayNumber :: Year -> Month -> Date -> Int
+relativeDayNumber y m d = days d - days (Date y m (Day 1)) + 1
 
 week :: Int -> Int -> [String] -> [[String]] -> String
 week width height names events = divider (width + 2) 7
     ++ row' names
-   -- ++ (concat $ map row' (map (padded "" 7) $ map leftAligned events))
+    ++ concat (map row' $ transpose paddedEvents)
     where
+        paddedEvents = map (padded "" height) (map leftAligned events)
         row' = row width . map leftAligned
         height' = maximum $ map length events
-        emptyRow = row width $ replicate 7 emptyString
+        emptyRow = row width $ replicate 7 mempty
 
-padded :: a -> Int -> ([a], [a]) -> [a]
-padded a n (l, r) = l ++ replicate (n - length l - length r) a ++ r
+padded :: a -> Int -> Aligned [a] -> [a]
+padded a n (Aligned l c r) = l ++ padding left ++ c ++ padding right ++ r
+    where
+        len = length l + length c + length r
+        (left, right) = calc (0, 0)
+        calc (a, b)
+            | len + a + b < n =
+                if length l + a < length r + b
+                then calc (a + 1, b)
+                else calc (a, b + 1)
+            | otherwise = (a, b)
+        padding m = replicate m a
 
-leftAligned :: Monoid a => a -> (a, a)
-leftAligned s = (s, mempty)
+shorten :: Int -> String -> String
+shorten n s
+    | n > length s = s 
+    | otherwise = (take (n - 2) s) ++ ".." 
 
-rightAligned :: Monoid a => a -> (a, a)
-rightAligned s = (mempty, s)
+data Aligned a = Aligned a a a
 
-emptyString :: Monoid a => (a, a)
-emptyString = (mempty, mempty)
+instance Monoid a => Monoid (Aligned a) where
+    mempty = Aligned mempty mempty mempty
+    mappend (Aligned a b c) (Aligned d e f) =
+        Aligned (a <> d) (b <> e) (c <> f)
 
-row :: Int -> [(String, String)] -> String
+leftAligned :: Monoid a => a -> Aligned a
+leftAligned s = Aligned s mempty mempty
+
+rightAligned :: Monoid a => a -> Aligned a
+rightAligned s = Aligned mempty mempty s
+
+centerAligned :: Monoid a => a -> Aligned a
+centerAligned s = Aligned mempty s mempty
+
+row :: Int -> [Aligned String] -> String
 row width = (++ "\n")
     . intercalate "|" 
     . map (between " " . padded ' ' width)
