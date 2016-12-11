@@ -16,7 +16,6 @@ import System.IO
 import Text.Printf (printf)
 
 import ParseLib.Abstract
-import qualified Text.PrettyPrint as PP
 
 data DateTime = DateTime
     { date :: Date
@@ -371,7 +370,7 @@ days (Date (Year year) (Month month) (Day day)) =
     where
         monthTotal m = sum . fmap (monthLength year) $ [1 .. m]
         yearTotal y = sum . fmap yearLength $ [0 .. y]
-        yearLength y = if leapYear year then 366 else 365
+        yearLength y = if leapYear y then 366 else 365
 
 seconds :: Time -> Int
 seconds (Time (Hour hour) (Minute minute) (Second second)) =
@@ -403,10 +402,10 @@ ppMonth year @ (Year y) month @ (Month m) Calendar { .. } =
         monthLength' = monthLength y m
 
         oneWeek n = week width (max (maximum $ map length es) 2) 
-            (map showDayNumber days) es
+            (map showDayNumber ds) es
             where
-                days = take 7 [1 + 7 * n - start..]
-                es = map (printEvent) days
+                ds = take 7 [1 + 7 * n - start..]
+                es = map printEvent ds
 
         start = dayOfWeek $ Date year month (Day 1)
 
@@ -448,21 +447,22 @@ ppMonth year @ (Year y) month @ (Month m) Calendar { .. } =
         width = 15
         
         (dayEvents, startEvents, ongoingEvents, endEvents) = 
-            tmap (filter $ \(d, e) -> inMonth d) 
+            tmap (filter $ \(d, _) -> inMonth d) 
             $ splitEvents' events_ ([],[],[],[])
             where
-                tmap f = \(a, b, c, d) -> (f a, f b, f c, f d)
+                tmap f (a, b, c, d) = (f a, f b, f c, f d)
 
                 splitEvents' [] other = other
-                splitEvents' (((a, b), e) : es) (day, start, going, end)
+                splitEvents' (((a, b), e) : es) 
+                    (day, starting, going, ending)
                     | a == b && inMonth a = 
                         splitEvents' es 
                             ( (a, e) : day
-                            , start, going, end)
+                            , starting, going, ending)
                     | otherwise = 
                         splitEvents' es 
-                            ( day, (a, e) : start
-                            , inbetween ++ going, (b, e) : end)
+                            ( day, (a, e) : starting
+                            , inbetween ++ going, (b, e) : ending)
                     where
                         inbetween = zip  [a + 1 .. b - 1] (repeat e)
 
@@ -487,30 +487,30 @@ relativeDayNumber y m d = days d - days (Date y m (Day 1)) + 1
 week :: Int -> Int -> [String] -> [[String]] -> String
 week width height names events = divider (width + 2) 7
     ++ row' names
-    ++ concat (map row' $ transpose paddedEvents)
+    ++ concatMap row' (transpose paddedEvents)
     where
-        paddedEvents = map (padded "" height) (map leftAligned events)
+        paddedEvents = map (padded " " height' . leftAligned) events
         row' = row width . map leftAligned
-        height' = maximum $ map length events
-        emptyRow = row width $ replicate 7 mempty
+        height' = max height $ maximum $ map length events
 
 padded :: a -> Int -> Aligned [a] -> [a]
-padded a n (Aligned l c r) = l ++ padding left ++ c ++ padding right ++ r
+padded pad n (Aligned l c r) = 
+    l ++ padding left ++ c ++ padding right ++ r
     where
         len = length l + length c + length r
         (left, right) = calc (0, 0)
         calc (a, b)
-            | len + a + b < n =
+            | len + a + b < n = calc $
                 if length l + a < length r + b
-                then calc (a + 1, b)
-                else calc (a, b + 1)
+                then (a + 1, b)
+                else (a, b + 1)
             | otherwise = (a, b)
-        padding m = replicate m a
+        padding m = replicate m pad
 
 shorten :: Int -> String -> String
 shorten n s
     | n > length s = s 
-    | otherwise = (take (n - 2) s) ++ ".." 
+    | otherwise = take (n - 2) s ++ ".." 
 
 data Aligned a = Aligned a a a
 
@@ -523,7 +523,7 @@ leftAligned :: Monoid a => a -> Aligned a
 leftAligned s = Aligned s mempty mempty
 
 rightAligned :: Monoid a => a -> Aligned a
-rightAligned s = Aligned mempty mempty s
+rightAligned = Aligned mempty mempty
 
 centerAligned :: Monoid a => a -> Aligned a
 centerAligned s = Aligned mempty s mempty
@@ -534,9 +534,9 @@ row width = (++ "\n")
     . map (between " " . padded ' ' width)
 
 divider :: Int -> Int -> String
-divider width length = (++ "\n")
+divider width len = (++ "\n")
     . intercalate "+" 
-    $ replicate length 
+    $ replicate len 
     $ replicate width '-'
 
 between :: [a] -> [a] -> [a]
