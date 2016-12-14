@@ -1,5 +1,5 @@
 {
-module Scanner (Token, scan) where
+module Scanner (Token(..), scan) where
 }
 
 %wrapper "basic"
