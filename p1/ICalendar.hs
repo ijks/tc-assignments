@@ -141,9 +141,9 @@ recognizeCalendar s = run scanCalendar s >>= run parseCalendar
 -- DO NOT forget to rename the module back to "ICalendar" before submitting to DomJudge.
 main :: IO ()
 main = do
-    res <- readCalendar "examples/rooster_infotc.ics"
+    res <- readCalendar "examples/bastille.ics"
     putStrLn $ maybe "Calendar parsing error"
-        (ppMonth (Year 2012) (Month 11)) res
+        (ppMonth (Year 1997) (Month 7)) res
 
 -- Exercise 1
 
@@ -400,6 +400,9 @@ ppMonth year @ (Year y) month @ (Month m) Calendar { .. } =
         weeks = concatMap oneWeek [0 .. numberOfWeeks]
         numberOfWeeks = if monthLength' == 28 && start == 0 then 3 else 4
         monthLength' = monthLength y m
+        inMonth n = n > 0 && n <= monthLength'
+        width = 15
+        start = dayOfWeek $ Date year month (Day 1)
 
         oneWeek n = week width (max (maximum $ map length es) 2) 
             (map showDayNumber ds) es
@@ -407,22 +410,22 @@ ppMonth year @ (Year y) month @ (Month m) Calendar { .. } =
                 ds = take 7 [1 + 7 * n - start..]
                 es = map printEvent ds
 
-        start = dayOfWeek $ Date year month (Day 1)
-
         showDayNumber n
             | inMonth n = show n
             | otherwise = ""
 
-        printEvent day = concatMap (map $ padded ' ' width) 
-            [ printToday ongoingEvent ongoingEvents
-            , printToday startEvent startEvents
-            , printToday dayEvent dayEvents
-            , printToday endEvent endEvents
-            ] 
-            where
-                printToday f xs = concatMap (f . snd) 
-                    $ sortBy (comparing $ dtStart . snd)
-                    $ (filter $ \(d, _) -> d == day) xs
+        printEvent day
+            | day < 0 = []
+            | otherwise = concatMap (map $ padded ' ' width) 
+                [ printToday ongoingEvent ongoingEvents
+                , printToday startEvent startEvents
+                , printToday dayEvent dayEvents
+                , printToday endEvent endEvents
+                ] 
+                where
+                    printToday f xs = concatMap f
+                        $ sortBy (comparing dtStart)
+                        $ xs !! day
 
         title e w = between " " $ shorten w $ fromMaybe "-" $ summary e
         startTime e = ppTime $ time $ dtStart e
@@ -444,10 +447,9 @@ ppMonth year @ (Year y) month @ (Month m) Calendar { .. } =
         ongoingEvent e =
             [ centerAligned $ between "-" $ title e (width - 4) ]
         
-        width = 15
         
         (dayEvents, startEvents, ongoingEvents, endEvents) = 
-            tmap (filter $ \(d, _) -> inMonth d) 
+            tmap (separate . filter (\(d, _) -> inMonth d))
             $ splitEvents' events_ ([],[],[],[])
             where
                 tmap f (a, b, c, d) = (f a, f b, f c, f d)
@@ -470,10 +472,13 @@ ppMonth year @ (Year y) month @ (Month m) Calendar { .. } =
                     where
                         f = relativeDayNumber year month . date
 
-        separateEvents :: [(Int, b)] -> [(Int, [b])] -- TODO
-        separateEvents xs = zip [1..31] []
+separate :: [(Int, b)] -> [[b]]
+separate = sep 0 . sortBy (comparing fst)
+    where
+        sep n xs = map snd ys : sep (n + 1) yss
+            where
+                (ys, yss) = span ((== n) . fst) xs
 
-        inMonth n = n > 0 && n <= monthLength'
 
 ppTime :: Time -> String
 ppTime (Time (Hour h) (Minute m) _) =
