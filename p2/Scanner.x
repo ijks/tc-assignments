@@ -10,7 +10,7 @@ tokens :-
     $white+     ;
     "--".*      ;
     "->"        { const Arrow }
-    "."         { const End }
+    "."         { const RuleEnd }
     ","         { const CmdSep }
     ";"         { const AltSep }
     go | take | mark | nothing
@@ -26,7 +26,7 @@ tokens :-
 {
 data Token
     = Arrow
-    | End
+    | RuleEnd
     | CmdSep
     | AltSep
     | Keyword String
