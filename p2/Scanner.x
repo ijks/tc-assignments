@@ -9,8 +9,8 @@ $alphanum = [A-Za-z0-9]
 tokens :-
     $white+     ;
     "--".*      ;
-    "->"        { const RuleDef }
-    "."         { const RuleEnd }
+    "->"        { const Arrow }
+    "."         { const End }
     ","         { const CmdSep }
     ";"         { const AltSep }
     go | take | mark | nothing
@@ -25,7 +25,7 @@ tokens :-
                 { Ident }
 {
 data Token
-    = Def
+    = Arrow
     | End
     | CmdSep
     | AltSep
