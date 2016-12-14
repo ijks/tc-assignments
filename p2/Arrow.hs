@@ -11,6 +11,7 @@ type Size = Int
 type Pos = (Int, Int)
 type Space = Map Pos Contents
 data Contents = Empty | Lambda | Debris | Asteroid | Boundary
+    deriving (Show, Eq)
 
 parseSpace :: Parser Char Space
 parseSpace = do
@@ -39,10 +40,29 @@ contents =
             , '#' =: Boundary
             ]
 
--- These three should be defined by you
-type Ident = ()
-type Commands = ()
-type Heading = ()
+data Pattern
+    = Any
+    | Contents Contents
+    deriving (Eq, Show)
+
+data Command
+    = Go | Take | Mark | NoOp
+    | Turn Heading
+    | Case Heading [(Pattern, Commands)]
+    | CallRule Ident
+    deriving (Eq, Show)
+
+type Commands = [Command]
+type Ident = String
+data Heading = Left | Right | Front
+    deriving (Eq, Show)
+
+data Rule = Rule
+    { ruleName :: Ident
+    , ruleCommands :: Commands
+    } deriving (Eq, Show)
+
+type Program = [Rule]
 
 type Environment = Map Ident Commands
 
