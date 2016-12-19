@@ -1,9 +1,10 @@
 module Arrow where
 
-import Prelude hiding ((<*), (<$))
+import Prelude hiding ((<*), (<$), Left, Right)
 import ParseLib.Abstract
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe (isJust)
 import Control.Monad (replicateM)
 import Data.Char (isSpace)
 
@@ -64,7 +65,7 @@ data Rule = Rule
 
 type Program = [Rule]
 
-type Environment = Map Ident Commands
+type Env = Map Ident Commands
 
 type Stack = Commands
 data ArrowState = ArrowState Space Pos Heading Stack
