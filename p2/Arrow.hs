@@ -74,3 +74,161 @@ data Step
     = Done Space Pos Heading
     | Ok ArrowState
     | Fail String
+
+type ProgramAlgebra p r c h =
+    ( [r] -> p -- program
+    , Ident -> [c] -> r -- rule
+    , c -- go
+    , c -- take
+    , c -- mark
+    , c -- noOp
+    , h -> c -- turn
+    , h -> [(Pattern, [c])] -> c -- case
+    , Ident -> c -- call
+    , h -- left
+    , h -- right
+    , h -- front
+    )
+
+foldProgram :: ProgramAlgebra p r c h -> Program -> p
+foldProgram
+    ( p, r
+    , go, tk, mark, noop, turn, cse, call
+    , left, right, front) = fProgram
+        where
+            fProgram = p . map fRule
+            fRule (Rule i cs) = r i (fCs cs)
+            fCommand Go = go
+            fCommand Take = tk
+            fCommand Mark = mark
+            fCommand NoOp = noop
+            fCommand (Turn a) = turn (fHeading a)
+            fCommand (Case a cs) = cse (fHeading a) (map (fmap fCs) cs)
+            fCommand (Call i) = call i
+            fHeading Left = left
+            fHeading Right = right
+            fHeading Front = front
+            fCs = map fCommand
+
+saneAlgebra :: ProgramAlgebra (Env -> Bool) (Env -> Env) (Env -> Env -> Bool) ()
+saneAlgebra =
+    -- Program
+    ( \rules -> \env -> undefined --elem "start" rules && noDuplicates rules
+    -- Rule
+    , \i cs -> \env -> insert i cs env -- Ident -> [c] -> r
+    -- Command
+    , undefined -- c -- go
+    , undefined -- c -- take
+    , undefined -- c -- mark
+    , undefined -- c -- noOp
+    , undefined -- h -> c -- turn
+    , \_ xs -> \env fenv -> correctPattern (lookup Any xs)
+        || contains (map Contents [Empty, Lambda, Debris, Asteroid, Boundary]) xs -- case
+    , undefined -- Ident -> c -- call
+    -- Heading
+    , (), (), ()
+    )
+    where
+        correctPattern (Just cs) = and cs
+        correctPattern Nothing = False
+        contains ps cs = all correctPattern $ map (\x -> lookup x cs) ps
+        noDuplicates [] = True
+        noDuplicates (x:xs) = notElem x xs && noDuplicates xs 
+
+{-
+type ProgramAlgebra p r cs c h =
+    (   ( r -> p -> p -- consRules
+        , p -- emptyRules
+        )
+    ,   RuleAlgebra r cs c h
+    )
+
+type RuleAlgebra r cs c h =
+    (   ( Ident -> cs -> r -- rule
+        )
+    ,   CommandsAlgebra cs c h
+    )
+
+type CommandsAlgebra cs c h =
+    (   ( c -> cs -> cs -- consCommands
+        , cs -- emptyCommands
+        )
+    ,   CommandAlgebra c h
+    )
+
+type CommandAlgebra c h =
+    (   ( c -- go
+        , c -- take
+        , c -- mark
+        , c -- noOp
+        , h -> c -- turn
+        , h -> [(Pattern, Commands)] -> c -- case
+        , Ident -> c -- call
+        )
+    ,   HeadingAlgebra h
+    )
+
+type HeadingAlgebra h =
+    ( h -- left
+    , h -- right
+    , h -- front
+    )
+
+foldProgram :: ProgramAlgebra p r cs c h -> Program -> p
+foldProgram ((cons, empty), ruleAlgebra) = f
+    where
+        f (r:rs) = cons (foldRule ruleAlgebra r) (f rs)
+        f [] = empty
+
+foldRule :: RuleAlgebra r cs c h -> Rule -> r
+foldRule (rule, commandsAlgebra) = f
+    where
+        f (Rule s cs) = rule s (foldCommands commandsAlgebra cs)
+
+foldCommands :: CommandsAlgebra cs c h -> Commands -> cs
+foldCommands ((cons, empty), commandAlgebra) = f
+    where
+        f (c:cs) = cons (foldCommand commandAlgebra c) (f cs)
+        f [] = empty
+
+foldCommand :: CommandAlgebra c h -> Command -> c
+foldCommand ((go, tk, mark, noop, turn, cse, call), headingAlgebra) = f
+    where
+        f Go = go
+        f Take = tk
+        f Mark = mark
+        f NoOp = noop
+        f (Turn h) = turn (foldHeading headingAlgebra h)
+        f (Case h cases) = cse (foldHeading headingAlgebra h) cases
+        f (Call i) = call i
+
+foldHeading :: HeadingAlgebra h -> Heading -> h
+foldHeading (left, right, front) = f
+    where
+        f Left = left
+        f Right = right
+        f Front = front
+
+saneAlgebra :: ProgramAlgebra (Env -> Bool) (Env -> Env) Bool Bool ()
+saneAlgebra = prgrm <: rule <: cmds <: cmd <: hdng
+    where
+        infixr 5 <:
+        (<:) = (,)
+        prgrm = ((:), [])
+        rule = const
+        cmds = (\c cs -> c && cs, True)
+        cmd = 
+            (True, True, True, True, const True
+            , \h cs -> length cs > 4 || case lookup Any cs of
+                Just _ -> True
+                Nothing -> False
+            , const True)
+        hdng = ((),(),())
+
+check :: Program -> Bool
+check = (\rules -> elem "start" rules && noDuplicates rules) . foldProgram saneAlgebra
+    where
+        noDuplicates [] = True
+        noDuplicates (x:xs) = notElem x xs && noDuplicates xs 
+
+-}
