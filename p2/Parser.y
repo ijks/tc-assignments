@@ -1,7 +1,6 @@
 {
 module Parser where
 
-import Arrow
 import Scanner
 }
 
@@ -57,9 +56,9 @@ cmd
     | IDENT { CallRule $1 }
 
 dir
-    : LEFT { Arrow.Left }
-    | RIGHT { Arrow.Right }
-    | FRONT { Arrow.Front }
+    : LEFT { Parser.Left }
+    | RIGHT { Parser.Right }
+    | FRONT { Parser.Front }
 
 alts
     : {- empty -} { [] }
@@ -78,6 +77,35 @@ pat
     | "_" { Any }
 
 {
+type Program = [Rule]
+
+data Rule = Rule
+    { ruleName :: Ident
+    , ruleCommands :: Commands
+    } deriving (Eq, Show)
+
+type Commands = [Command]
+
+data Command
+    = Go | Take | Mark | NoOp
+    | Turn Heading
+    | Case Heading [(Pattern, Commands)]
+    | CallRule Ident
+    deriving (Eq, Show)
+
+data Heading = Left | Right | Front
+    deriving (Eq, Show)
+
+type Ident = String
+
+data Pattern
+    = Any
+    | Contents Contents
+    deriving (Eq, Show)
+
+data Contents = Empty | Lambda | Debris | Asteroid | Boundary
+    deriving (Show, Enum, Eq)
+
 parseError :: [Token] -> a
 parseError _ = error "Parse error :("
 }

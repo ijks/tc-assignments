@@ -14,11 +14,11 @@ import Data.Char (isSpace)
 
 import ParseLib.Abstract
 
+import Parser
+
 type Size = Int
 type Pos = (Int, Int)
 type Space = Map Pos Contents
-data Contents = Empty | Lambda | Debris | Asteroid | Boundary
-    deriving (Show, Enum, Eq)
 
 parseSpace :: Parser Char Space
 parseSpace = do
@@ -46,30 +46,6 @@ contents =
             , 'O' =: Asteroid
             , '#' =: Boundary
             ]
-
-data Pattern
-    = Any
-    | Contents Contents
-    deriving (Eq, Show)
-
-data Command
-    = Go | Take | Mark | NoOp
-    | Turn Heading
-    | Case Heading [(Pattern, Commands)]
-    | CallRule Ident
-    deriving (Eq, Show)
-
-type Commands = [Command]
-type Ident = String
-data Heading = Left | Right | Front
-    deriving (Eq, Show)
-
-data Rule = Rule
-    { ruleName :: Ident
-    , ruleCommands :: Commands
-    } deriving (Eq, Show)
-
-type Program = [Rule]
 
 data ListAlgebra a r = ListA
     { cons :: a -> r -> r
