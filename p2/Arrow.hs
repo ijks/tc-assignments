@@ -17,6 +17,7 @@ import Data.Char (isSpace)
 import ParseLib.Abstract
 
 import Parser
+import Scanner
 
 type Size = Int
 type Pos = (Int, Int)
@@ -124,14 +125,27 @@ startExistsA = ListA
     }
 
 check :: Program -> Bool
-check p = and
-    [ foldList startExistsA p
-    , or $ do -- 'or' works on 'Foldable' types, which 'Maybe' is.
-        env <- foldList environmentA p
-        return . all (\c -> foldCommand noUndefinedCallsA c env) $ cmds
-    , all (foldCommand noRefutableCaseA) cmds
-    ]
-    where cmds = p >>= ruleCommands
+check = isJust . check'
+
+check' :: Program -> Maybe Env
+check' p = do
+    let cmds = p >>= ruleCommands
+    let startExists = foldList startExistsA p
+    let cmdsValid = all (foldCommand noRefutableCaseA) cmds
+    if startExists && cmdsValid
+        then do
+            env <- foldList environmentA p
+            if all (\c -> foldCommand noUndefinedCallsA c env) cmds
+                then Just env
+                else Nothing
+        else
+            Nothing
+
+toEnvironment :: String -> Env
+toEnvironment s =
+    case check' . Parser.parse . Scanner.scan $ s of
+        Just env -> env
+        Nothing -> error "invalid program"
 
 -- * Exercise 4
 -- The documentation on Happy states that it is more efficient when the grammar
