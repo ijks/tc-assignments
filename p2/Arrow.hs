@@ -3,6 +3,8 @@
 
 module Arrow where
 
+-- ** Written assignments are included at the bottom of the file ** --
+
 import Prelude hiding ((<*), (<$), Left, Right)
 
 import Control.Arrow (second)
@@ -130,3 +132,11 @@ check p = and
     , all (foldCommand noRefutableCaseA) cmds
     ]
     where cmds = p >>= ruleCommands
+
+-- * Exercise 4
+-- The documentation on Happy states that it is more efficient when the grammar
+-- is left-recursive. https://www.haskell.org/happy/doc/html/sec-sequences.html
+-- This is different than parser combinators, which prefer a right-recursive
+-- grammar, and in fact fail in the case of a left-recursive grammar.
+
+-- * Exercise 10
