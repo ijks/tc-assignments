@@ -54,7 +54,7 @@ cmd
     | NOTHING { NoOp }
     | TURN dir { Turn $2 }
     | CASE dir OF alts END { Case $2 $4 }
-    | IDENT { Call $1 }
+    | IDENT { CallRule $1 }
 
 dir
     : LEFT { Arrow.Left }
