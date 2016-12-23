@@ -9,9 +9,10 @@ import Prelude hiding ((<*), (<$), Left, Right)
 
 import Control.Arrow (second)
 import Control.Monad (replicateM)
+import Data.List (find)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (isJust)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Char (isSpace)
 
 import ParseLib.Abstract
@@ -81,16 +82,6 @@ foldCommand CommandA { .. } = fold
         fold (Case h ps) = cmdCase h (fmap (second (fmap fold)) ps)
         fold (CallRule rl) = cmdCallRule rl
 
-type Env = Map Ident Commands
-
-type Stack = Commands
-data ArrowState = ArrowState Space Pos Heading Stack
-
-data Step
-    = Done Space Pos Heading
-    | Ok ArrowState
-    | Fail String
-
 noUndefinedCallsA :: CommandAlgebra (Env -> Bool)
 noUndefinedCallsA = CommandA t t t t
     (\_ _ -> True)
@@ -141,11 +132,83 @@ check' p = do
         else
             Nothing
 
+type Env = Map Ident Commands
+
 toEnvironment :: String -> Env
 toEnvironment s =
     case check' . Parser.parse . Scanner.scan $ s of
         Just env -> env
         Nothing -> error "invalid program"
+
+type Stack = Commands
+
+data ArrowState = ArrowState Space Pos Heading Stack
+
+data Step
+    = Done Space Pos Heading
+    | Ok ArrowState
+    | Fail String
+
+step :: Env -> ArrowState -> Step
+step _ (ArrowState space pos heading []) =
+    Done space pos heading
+step env (ArrowState space (pos @ (x, y)) heading (cmd:stack)) =
+    case cmd of
+        Go ->
+            Ok $ case Map.lookup forward space of
+                Just Empty -> ArrowState space forward heading stack
+                Just Lambda -> ArrowState space forward heading stack
+                Just Debris -> ArrowState space forward heading stack
+                _ -> ArrowState space pos heading stack
+        Take ->
+            Ok $ ArrowState (Map.adjust takeContents pos space) pos heading stack
+        Mark ->
+            Ok $ ArrowState (Map.insert pos Lambda space) pos heading stack
+        NoOp ->
+            Ok $ ArrowState space pos heading stack
+        Turn dir ->
+            Ok $ ArrowState space pos (turn dir heading) stack
+        Case h alts ->
+            case find (matches forwardContents) alts of
+                Just (_, cmds) ->
+                    Ok $ ArrowState space pos heading (cmds ++ stack)
+                Nothing ->
+                    Fail "no matching pattern found!"
+        CallRule rule ->
+            case Map.lookup rule env of
+                Just cmds ->
+                    Ok $ ArrowState space pos heading (cmds ++ stack)
+                Nothing ->
+                    Fail $ "rule \"" ++ rule ++ "\" not found!"
+    where
+        forward = case heading of
+            Up -> (x, y + 1)
+            Down -> (x, y - 1)
+            Left -> (x - 1, y)
+            Right -> (x + 1, y)
+        forwardContents = fromMaybe Boundary (Map.lookup forward space)
+
+takeContents :: Contents -> Contents
+takeContents Lambda = Empty
+takeContents Debris = Empty
+takeContents c = c
+
+turn :: Heading -> Heading -> Heading
+turn Left h = case h of
+    Up -> Left
+    Left -> Down
+    Down -> Right
+    Right -> Up
+turn Right h = case h of
+    Up -> Right
+    Right -> Down
+    Down -> Left
+    Left -> Up
+turn _ h = h
+
+matches :: Contents -> Alternative -> Bool
+matches cts (Contents c, _) = c == cts
+matches _ (Any, _) = True
 
 -- * Exercise 4
 -- The documentation on Happy states that it is more efficient when the grammar

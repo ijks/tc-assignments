@@ -58,7 +58,7 @@ cmd
 dir
     : LEFT { Parser.Left }
     | RIGHT { Parser.Right }
-    | FRONT { Parser.Front }
+    | FRONT { Parser.Up }
 
 alts
     : {- empty -} { [] }
@@ -89,12 +89,14 @@ type Commands = [Command]
 data Command
     = Go | Take | Mark | NoOp
     | Turn Heading
-    | Case Heading [(Pattern, Commands)]
+    | Case Heading [Alternative]
     | CallRule Ident
     deriving (Eq, Show)
 
-data Heading = Left | Right | Front
+data Heading = Up | Down | Left | Right
     deriving (Eq, Show)
+
+type Alternative = (Pattern, Commands)
 
 type Ident = String
 
