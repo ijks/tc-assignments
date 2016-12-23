@@ -216,3 +216,11 @@ matches _ (Any, _) = True
 -- grammar, and in fact fail in the case of a left-recursive grammar.
 
 -- * Exercise 10
+-- A recursive call adds all commands of the called rule to the top of the 
+-- stack, while leaving the other commands of the current rule below it. When 
+-- the recursive call is at the end of the command sequence, there are no 
+-- commands left on the stack of the initial command sequence. If the recursive
+-- call is in the middle of the sequence, or even at the front, all commands
+-- that come after it will remain on the stack.
+-- Therefor: the earlier the recursive call is in a command sequence, the more
+-- impact it has on the size of the stack.
