@@ -7,12 +7,12 @@ module Arrow where
 
 import Prelude hiding ((<*), (<$), Left, Right)
 import Control.Arrow (second)
-import ParseLib.Abstract
-import Data.Map (Map, (!))
+import Control.Monad (replicateM)
+import Data.Char (isSpace)
+import Data.List (find)
 import Data.Map (Map, (!))
 import qualified Data.Map as Map
 import Data.Maybe (fromJust, fromMaybe, isJust)
-import Data.Char (isSpace)
 
 import ParseLib.Abstract
 
@@ -41,8 +41,8 @@ contents :: Parser Char Contents
 contents =
     choice (map (\(f, c) -> f <$ symbol c) contentsTable) <* spaces
 
-contentsTable :: [(Contents, Char)] 
-contentsTable = 
+contentsTable :: [(Contents, Char)]
+contentsTable =
     [ (Empty , '.')
     , (Lambda, '\\')
     , (Debris, '%')
@@ -147,30 +147,6 @@ printSpace space =
                 endOfLine = (== snd size) . snd
         coords = Map.keys space
 
-data Pattern
-    = Any
-    | Contents Contents
-    deriving (Eq, Show)
-
-data Command
-    = Go | Take | Mark | NoOp
-    | Turn Heading
-    | Case Heading [(Pattern, Commands)]
-    | CallRule Ident
-    deriving (Eq, Show)
-
-type Commands = [Command]
-type Ident = String
-data Heading = Left | Right | Front
-    deriving (Eq, Show)
-
-data Rule = Rule
-    { ruleName :: Ident
-    , ruleCommands :: Commands
-    } deriving (Eq, Show)
-
-type Program = [Rule]
-
 type Env = Map Ident Commands
 
 toEnvironment :: String -> Env
@@ -256,11 +232,11 @@ matches _ (Any, _) = True
 -- grammar, and in fact fail in the case of a left-recursive grammar.
 
 -- * Exercise 10
--- A recursive call adds all commands of the called rule to the top of the 
--- stack, while leaving the other commands of the current rule below it. When 
--- the recursive call is at the end of the command sequence, there are no 
+-- A recursive call adds all commands of the called rule to the top of the
+-- stack, while leaving the other commands of the current rule below it. When
+-- the recursive call is at the end of the command sequence, there are no
 -- commands left on the stack of the initial command sequence. If the recursive
 -- call is in the middle of the sequence, or even at the front, all commands
 -- that come after it will remain on the stack.
--- Therefor: the earlier the recursive call is in a command sequence, the more
+-- Therefore: the earlier the recursive call is in a command sequence, the more
 -- impact it has on the size of the stack.
