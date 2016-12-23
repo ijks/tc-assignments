@@ -6,13 +6,12 @@ module Arrow where
 -- ** Written assignments are included at the bottom of the file ** --
 
 import Prelude hiding ((<*), (<$), Left, Right)
-
 import Control.Arrow (second)
 import Control.Monad (replicateM)
 import Data.List (find)
-import Data.Map (Map)
+import Data.Map (Map, (!))
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (fromJust, fromMaybe, isJust)
 import Data.Char (isSpace)
 
 import ParseLib.Abstract
@@ -40,16 +39,16 @@ spaces = greedy (satisfy isSpace)
 
 contents :: Parser Char Contents
 contents =
-    choice (map (\(c, f) -> f <$ symbol c) table) <* spaces
-    where
-        (=:) = (,)
-        table =
-            [ '.' =: Empty
-            , '\\' =: Lambda
-            , '%' =: Debris
-            , 'O' =: Asteroid
-            , '#' =: Boundary
-            ]
+    choice (map (\(f, c) -> f <$ symbol c) contentsTable) <* spaces
+
+contentsTable :: [(Contents, Char)] 
+contentsTable = 
+    [ (Empty , '.')
+    , (Lambda, '\\')
+    , (Debris, '%')
+    , (Asteroid, 'O')
+    , (Boundary, '#')
+    ]
 
 data ListAlgebra a r = ListA
     { cons :: a -> r -> r
