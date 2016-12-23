@@ -241,6 +241,25 @@ matches :: Contents -> Pattern -> Bool
 matches cts (Contents c) = c == cts
 matches _ Any = True
 
+test = do
+    s <- readFile "examples\\AddInput.space"
+    let sp = fst . head $ ParseLib.Abstract.parse parseSpace s
+    t <- readFile "examples\\Add.arrow"
+    let ts = Scanner.scan t
+    let ps = Parser.parse ts
+    interactive (fromJust $ check' ps) (ArrowState sp (0,0) Right [CallRule "start"])
+
+
+interactive :: Env -> ArrowState -> IO ()
+interactive env state @ (ArrowState space _ _ _) = do
+    putStrLn $ printSpace space
+    let stp = step env state
+    actUpon stp
+    where
+        actUpon (Done space pos heading) = putStrLn "done"
+        actUpon (Ok st) = interactive env st
+        actUpon (Fail s) = putStrLn s
+
 -- * Exercise 4
 -- The documentation on Happy states that it is more efficient when the grammar
 -- is left-recursive. https://www.haskell.org/happy/doc/html/sec-sequences.html
