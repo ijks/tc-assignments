@@ -7,8 +7,8 @@ module Arrow where
 
 import Prelude hiding ((<*), (<$), Left, Right)
 import Control.Arrow (second)
-import Control.Monad (replicateM)
-import Data.List (find)
+import ParseLib.Abstract
+import Data.Map (Map, (!))
 import Data.Map (Map, (!))
 import qualified Data.Map as Map
 import Data.Maybe (fromJust, fromMaybe, isJust)
@@ -130,6 +130,46 @@ check' p = do
                 else Nothing
         else
             Nothing
+
+printSpace :: Space -> String
+printSpace space = 
+    -- We know that the last coordinate is always the size of the space
+    -- as long as the space is correct, according to the documentation of Map.
+    show size ++ "\n" ++
+    foldr f "" coords
+    where
+        noDuplicates [] = True
+        noDuplicates (x:xs) = notElem x xs && noDuplicates xs 
+        size = last coords
+        f pos rest = print pos ++ (if endOfLine pos then "\n" else "") ++ rest
+            where
+                print = (:[]) . fromJust . (flip lookup $ contentsTable) . (space !)
+                endOfLine = (== snd size) . snd
+        coords = Map.keys space
+
+data Pattern
+    = Any
+    | Contents Contents
+    deriving (Eq, Show)
+
+data Command
+    = Go | Take | Mark | NoOp
+    | Turn Heading
+    | Case Heading [(Pattern, Commands)]
+    | CallRule Ident
+    deriving (Eq, Show)
+
+type Commands = [Command]
+type Ident = String
+data Heading = Left | Right | Front
+    deriving (Eq, Show)
+
+data Rule = Rule
+    { ruleName :: Ident
+    , ruleCommands :: Commands
+    } deriving (Eq, Show)
+
+type Program = [Rule]
 
 type Env = Map Ident Commands
 
