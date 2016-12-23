@@ -97,7 +97,7 @@ data Command
     deriving (Eq, Show)
 
 data Heading = Up | Down | Left | Right
-    deriving (Eq, Show)
+    deriving (Eq, Show, Read)
 
 type Alternative = (Pattern, Commands)
 

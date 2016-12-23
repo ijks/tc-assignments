@@ -9,7 +9,7 @@ import Prelude hiding ((<*), (<$), Left, Right)
 import Control.Arrow (second)
 import Control.Monad (replicateM)
 import Data.Char (isSpace)
-import Data.List (find)
+import Data.List (find, intercalate)
 import Data.Map (Map, (!))
 import qualified Data.Map as Map
 import Data.Maybe (fromJust, fromMaybe, isJust)
@@ -167,9 +167,26 @@ toEnvironment s =
         Just env -> env
         Nothing -> error "invalid program"
 
+-- Parse a string into a space.
+toSpace :: String -> Space
+toSpace = fst . head . ParseLib.Abstract.parse parseSpace
+
+
 type Stack = Commands
 
 data ArrowState = ArrowState Space Pos Heading Stack
+
+instance Show ArrowState where
+    show (ArrowState space pos heading stack) =
+        intercalate "\n"
+        [ printSpace space
+        , "Position: " ++ show pos 
+            ++ " Heading: " ++ show heading
+        , "Stack: " ++ cutOff 80 (show stack)
+        ] where
+            cutOff n s = if length s < n 
+                then s
+                else take (n - 3) s ++ "..."
 
 data Step
     = Done Space Pos Heading
@@ -196,26 +213,29 @@ step env (ArrowState space (pos @ (x, y)) heading (cmd:stack)) =
         Turn dir ->
             Ok $ ArrowState space pos (turn dir heading) stack
         Case h alts ->
-            case find (matches forwardContents . fst) alts of
+            case find (matches (directionContents h) . fst) (reverse alts) of
                 Just (_, cmds) ->
-                    Ok $ ArrowState space pos heading (cmds ++ stack)
+                    Ok $ ArrowState space pos heading (reverse cmds ++ stack)
                 Nothing ->
                     Fail "no matching pattern found!"
         CallRule rule ->
             case Map.lookup rule env of
                 Just cmds ->
-                    Ok $ ArrowState space pos heading (cmds ++ stack)
+                    Ok $ ArrowState space pos heading (reverse cmds ++ stack)
                 Nothing ->
                     Fail $ "rule \"" ++ rule ++ "\" not found!"
     where
         -- Our next position, provided there is nothing in the way.
-        forward = case heading of
-            Up -> (x, y + 1)
-            Down -> (x, y - 1)
-            Left -> (x - 1, y)
-            Right -> (x + 1, y)
-        -- The contents of the space in front of us.
-        forwardContents = fromMaybe Boundary (Map.lookup forward space)
+        forward = direction heading
+        -- The position, relative to our position, in a direction.
+        direction h = case h of
+            Up -> (x - 1, y)
+            Down -> (x + 1, y)
+            Left -> (x, y - 1)
+            Right -> (x, y + 1)
+        -- The contents of the space in the direction relative to our heading.
+        directionContents h = fromMaybe Boundary 
+            (Map.lookup (direction $ turn h heading) space)
 
 takeContents :: Contents -> Contents
 takeContents Lambda = Empty
@@ -241,24 +261,45 @@ matches :: Contents -> Pattern -> Bool
 matches cts (Contents c) = c == cts
 matches _ Any = True
 
+-- This is the function we used to test our program.
+test :: IO ()
 test = do
-    s <- readFile "examples\\AddInput.space"
-    let sp = fst . head $ ParseLib.Abstract.parse parseSpace s
-    t <- readFile "examples\\Add.arrow"
-    let ts = Scanner.scan t
-    let ps = Parser.parse ts
-    interactive (fromJust $ check' ps) (ArrowState sp (0,0) Right [CallRule "start"])
-
+    s <- readFile "examples\\SampleSpace.space"
+    let sp = toSpace s
+    t <- readFile "examples\\RemoveDebris.arrow"
+    let env = toEnvironment t
+    interactive env (ArrowState sp (2, 2) Right [CallRule "start"])
 
 interactive :: Env -> ArrowState -> IO ()
-interactive env state @ (ArrowState space _ _ _) = do
-    putStrLn $ printSpace space
+interactive env state @ (ArrowState space pos heading stack) = do
+    putStrLn $ show state
+    putStrLn "Press Enter to continue.."
+    getLine
     let stp = step env state
     actUpon stp
     where
         actUpon (Done space pos heading) = putStrLn "done"
         actUpon (Ok st) = interactive env st
         actUpon (Fail s) = putStrLn s
+
+
+main :: IO ()
+main = do
+    putStrLn "What mission do you want to execute? [ filePath ]"
+    l0 <- getLine
+    programFile <- readFile l0
+    let env = toEnvironment programFile
+    putStrLn "What part of space do you want to discover? [ filePath ]"
+    l1 <- getLine
+    spaceFile <- readFile l1
+    let space = toSpace spaceFile
+    putStrLn "Where does your spaceship start? [ (x, y) ]"
+    l2 <- getLine
+    let start = read l2
+    putStrLn "Which way do you want to go? [ Left, Right, Up, Down ]"
+    l3 <- getLine
+    let heading = read l3
+    interactive env (ArrowState space start heading [CallRule "start"])
 
 -- * Exercise 4
 -- The documentation on Happy states that it is more efficient when the grammar
