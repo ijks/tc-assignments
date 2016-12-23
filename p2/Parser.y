@@ -77,6 +77,9 @@ pat
     | "_" { Any }
 
 {
+-- We had to move the declaration of our abstact syntax here, because we would
+-- have had a circular dependency between "Parser" and "Arrow" otherwise.
+
 type Program = [Rule]
 
 data Rule = Rule

@@ -81,6 +81,7 @@ foldCommand CommandA { .. } = fold
         fold (Case h ps) = cmdCase h (fmap (second (fmap fold)) ps)
         fold (CallRule rl) = cmdCallRule rl
 
+-- Check whether there are no calls to undefined rules.
 noUndefinedCallsA :: CommandAlgebra (Env -> Bool)
 noUndefinedCallsA = CommandA t t t t
     (\_ _ -> True)
@@ -88,6 +89,7 @@ noUndefinedCallsA = CommandA t t t t
     (\rule env -> rule `Map.member` env)
     where t = const True
 
+-- Check whether there are no case statements which could fail.
 noRefutableCaseA :: CommandAlgebra Bool
 noRefutableCaseA = CommandA True True True True
     (const True)
@@ -97,6 +99,7 @@ noRefutableCaseA = CommandA True True True True
         checkPatterns ps = any (== Any) ps || all (`elem` ps) allPossible
         allPossible = Contents <$> [Empty .. Boundary]
 
+-- Produce the environment for a program, but only if it has no duplicate rules.
 environmentA :: ProgramAlgebra (Maybe Env)
 environmentA = ListA
     { cons = \(Rule name cmds) ->
@@ -108,15 +111,19 @@ environmentA = ListA
     , nil = Just Map.empty
     }
 
+-- Check whether a rule named "start" exists
 startExistsA :: ProgramAlgebra Bool
 startExistsA = ListA
     { cons = (||) . (== "start") . ruleName
     , nil = False
     }
 
+-- Check whether a program is valid.
 check :: Program -> Bool
 check = isJust . check'
 
+-- Check whether a program is valid, and if so, return its environment.
+-- This way, we don't have to calculate the environment twice in 'toEnvironment'.
 check' :: Program -> Maybe Env
 check' p = do
     let cmds = p >>= ruleCommands
@@ -131,15 +138,16 @@ check' p = do
         else
             Nothing
 
+-- Produce a graphical representation of a space.
 printSpace :: Space -> String
-printSpace space = 
-    -- We know that the last coordinate is always the size of the space
-    -- as long as the space is correct, according to the documentation of Map.
+printSpace space =
     show size ++ "\n" ++
     foldr f "" coords
     where
         noDuplicates [] = True
-        noDuplicates (x:xs) = notElem x xs && noDuplicates xs 
+        noDuplicates (x:xs) = notElem x xs && noDuplicates xs
+        -- We know that the last coordinate is always the size of the space
+        -- as long as the space is correct, according to the documentation of Map.
         size = last coords
         f pos rest = print pos ++ (if endOfLine pos then "\n" else "") ++ rest
             where
@@ -149,6 +157,10 @@ printSpace space =
 
 type Env = Map Ident Commands
 
+-- Parse a string into a program, check it, and return the program's environment.
+-- Note: not total, can call 'error'. We would have used 'Maybe' or 'Either'
+-- here, but since the type of this function is given in the assignment, we felt
+-- we shouldn't change it.
 toEnvironment :: String -> Env
 toEnvironment s =
     case check' . Parser.parse . Scanner.scan $ s of
@@ -184,7 +196,7 @@ step env (ArrowState space (pos @ (x, y)) heading (cmd:stack)) =
         Turn dir ->
             Ok $ ArrowState space pos (turn dir heading) stack
         Case h alts ->
-            case find (matches forwardContents) alts of
+            case find (matches forwardContents . fst) alts of
                 Just (_, cmds) ->
                     Ok $ ArrowState space pos heading (cmds ++ stack)
                 Nothing ->
@@ -196,11 +208,13 @@ step env (ArrowState space (pos @ (x, y)) heading (cmd:stack)) =
                 Nothing ->
                     Fail $ "rule \"" ++ rule ++ "\" not found!"
     where
+        -- Our next position, provided there is nothing in the way.
         forward = case heading of
             Up -> (x, y + 1)
             Down -> (x, y - 1)
             Left -> (x - 1, y)
             Right -> (x + 1, y)
+        -- The contents of the space in front of us.
         forwardContents = fromMaybe Boundary (Map.lookup forward space)
 
 takeContents :: Contents -> Contents
@@ -208,6 +222,7 @@ takeContents Lambda = Empty
 takeContents Debris = Empty
 takeContents c = c
 
+-- Turn a heading left or right. Up and down are ignored.
 turn :: Heading -> Heading -> Heading
 turn Left h = case h of
     Up -> Left
@@ -221,9 +236,10 @@ turn Right h = case h of
     Left -> Up
 turn _ h = h
 
-matches :: Contents -> Alternative -> Bool
-matches cts (Contents c, _) = c == cts
-matches _ (Any, _) = True
+-- Check if contents match a pattern.
+matches :: Contents -> Pattern -> Bool
+matches cts (Contents c) = c == cts
+matches _ Any = True
 
 -- * Exercise 4
 -- The documentation on Happy states that it is more efficient when the grammar
