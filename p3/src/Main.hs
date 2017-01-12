@@ -3,7 +3,7 @@ module Main where
 import System.Environment
 import System.FilePath
 
-import ParseLib.Abstract.Derived
+import ParseLib.Abstract.Derived hiding ((<*))
 
 import CSharpLex
 import CSharpGram
