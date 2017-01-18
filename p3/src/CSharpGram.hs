@@ -44,8 +44,28 @@ pExprSimple =  ExprConst <$> sConst
            <|> parenthesised pExpr
 
 pExpr :: Parser Token Expr
-pExpr = chainr pExprSimple (ExprOper <$> sOperator)
+pExpr = pOpers priorities
+    where
+        priorities = map (map Operator)
+            [ ["*", "/", "%"]
+            , ["+", "-"]
+            , ["<", ">", "<=", ">="]
+            , ["^"]
+            , ["==", "!="]
+            , ["&&"]
+            , ["||"]
+            , ["="]
+            ]
 
+pOpers :: [[Token]] -> Parser Token Expr
+pOpers (ops:rest) =
+    (choice (operator <$> ops)) <|> pOpers rest
+    where
+        operator :: Token -> Parser Token Expr
+        operator op =
+            (flip ExprOper) <$> pOpers rest <*> symbol op <*> pOpers (ops:rest)
+pOpers [] =
+    pExprSimple
 
 pMember :: Parser Token Member
 pMember =  MemberD <$> pDeclSemi
@@ -90,4 +110,3 @@ pDeclSemi = const <$> pDecl <*> sSemi
 
 pClass :: Parser Token Class
 pClass = Class <$ symbol KeyClass <*> sUpperId <*> braced (many pMember)
-
