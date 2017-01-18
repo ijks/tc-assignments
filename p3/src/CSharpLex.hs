@@ -19,6 +19,7 @@ data Token = POpen    | PClose      -- parentheses     ()
            | LowerId   String       -- lowercase identifiers
            | ConstInt  Int
            | ConstBool Bool
+           | ConstChar Char
            deriving (Eq, Show)
 
 keyword :: String -> Parser Char String
@@ -66,6 +67,15 @@ lexUpperId = (\x xs -> UpperId (x:xs)) <$> satisfy isUpper <*> greedy (satisfy i
 lexConstInt :: Parser Char Token
 lexConstInt = (ConstInt . read) <$> greedy1 (satisfy isDigit)
 
+lexConstBool :: Parser Char Token
+lexConstBool = ConstBool <$> ((True <$ token "true") <|> (False <$ token "false"))
+
+lexConstChar :: Parser Char Token
+lexConstChar = ConstChar <$> (symbol '\'' *> anyChar <* symbol '\'')
+    where
+        anyChar = satisfy isAlpha <|> symbol '\\' *> lexEscape
+        lexEscape = choice $ map symbol ['n', 'r', 't']
+
 lexEnum :: (String -> Token) -> [String] -> Parser Char Token
 lexEnum f xs = f <$> choice (map keyword xs)
 
@@ -86,6 +96,8 @@ lexToken = greedyChoice
              , lexEnum StdType stdTypes
              , lexEnum Operator operators
              , lexConstInt
+             , lexConstBool
+             , lexConstChar
              , lexLowerId
              , lexUpperId
              ]
@@ -113,6 +125,7 @@ sConst :: Parser Token Token
 sConst  = satisfy isConst
     where isConst (ConstInt  _) = True
           isConst (ConstBool _) = True
+          isConst (ConstChar _) = True
           isConst _             = False
 
 sOperator :: Parser Token Token

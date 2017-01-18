@@ -4,8 +4,11 @@ class Hello
     
     void main()
     {
-        int b;
-        b = 1;
+        char b;
+        b = 'A';
+        b = '\n';
+        b = '\t';
+        b = 'B';
     }
     
     int square( int x )
