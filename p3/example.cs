@@ -5,17 +5,25 @@ class Hello
     void main()
     {
         char b;
-        b = 'A';
+        // single-line comments should work now
+        b = 'A';    /*
+            but
+                what
+                    about
+                        multiline
+                            comments?
+                */
         b = '\n';
-        b = '\t';
-        b = 'B';
+        b = '\t';/* Ow, multiple multiline comments conflict :/ */// NOT ANYMORE :D
+        int i;
+        i = 3 * 3 + 3;
     }
     
     int square( int x )
     {
         int y;
         y = x*x;
-        return y;   
+        return y;
     }
 
     int abs(int x)
