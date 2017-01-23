@@ -13,12 +13,23 @@ data ValueOrAddress = Value | Address
     deriving Show
 
 codeAlgebra :: CSharpAlgebra Code Code Code (ValueOrAddress -> Code)
-codeAlgebra =
-    ( fClas
-    , (fMembDecl, fMembMeth)
-    , (fStatDecl, fStatExpr, fStatIf, fStatWhile, fStatReturn, fStatBlock)
-    , (fExprCon, fExprVar, fExprOp)
-    )
+codeAlgebra = CSharpA
+    { classDecl = fClas
+    , memberDecl = MemberA { memberD = fMembDecl , memberM = fMembMeth }
+    , statement = StatA
+        { statDecl = fStatDecl
+        , statExpr = fStatExpr
+        , statIf = fStatIf
+        , statWhile = fStatWhile
+        , statReturn = fStatReturn
+        , statBlock = fStatBlock
+        }
+    , expression = ExprA
+        { exprConst = fExprCon
+        , exprVar = fExprVar
+        , exprOper = fExprOp
+        }
+    }
 
 fClas :: Token -> [Code] -> Code
 fClas c ms = [Bsr "main", HALT] ++ concat ms
@@ -75,4 +86,3 @@ opCodes = fromList [ ("+", ADD), ("-", SUB),  ("*", MUL), ("/", DIV), ("%", MOD)
                    , ("<=", LE), (">=", GE),  ("<", LT),  (">", GT),  ("==", EQ)
                    , ("!=", NE), ("&&", AND), ("||", OR), ("^", XOR)
                    ]
-
