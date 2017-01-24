@@ -31,6 +31,7 @@ data ExprAlgebra expr = ExprA
     { exprConst :: Token -> expr
     , exprVar :: Token -> expr
     , exprOper :: Token -> expr -> expr -> expr
+    , exprCall :: Token -> [expr] -> expr
     }
 
 
@@ -55,3 +56,4 @@ foldCSharp CSharpA { .. } = fClas
         fExpr (ExprConst con)     = exprConst con
         fExpr (ExprVar var)       = exprVar var
         fExpr (ExprOper op e1 e2) = exprOper op (fExpr e1) (fExpr e2)
+        fExpr (ExprCall fn args)  = exprCall fn (map fExpr args)

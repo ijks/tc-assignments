@@ -22,6 +22,7 @@ data Stat = StatDecl   Decl
 data Expr = ExprConst  Token
           | ExprVar    Token
           | ExprOper   Token Expr Expr
+          | ExprCall   Token [Expr]
           deriving Show
 
 data Decl = Decl Type Token
@@ -41,7 +42,13 @@ braced        p = pack (symbol COpen) p (symbol CClose)
 pExprSimple :: Parser Token Expr
 pExprSimple =  ExprConst <$> sConst
            <|> ExprVar   <$> sLowerId
+           <|> pExprCall
            <|> parenthesised pExpr
+
+pExprCall :: Parser Token Expr
+pExprCall = ExprCall
+    <$> sLowerId
+    <*> parenthesised (listOf pExpr (symbol Comma))
 
 pExpr :: Parser Token Expr
 pExpr = pOpers priorities
@@ -106,7 +113,7 @@ pDecl :: Parser Token Decl
 pDecl = Decl <$> pType <*> sLowerId
 
 pDeclSemi :: Parser Token Decl
-pDeclSemi = const <$> pDecl <*> sSemi
+pDeclSemi = pDecl <* sSemi
 
 pClass :: Parser Token Class
 pClass = Class <$ symbol KeyClass <*> sUpperId <*> braced (many pMember)

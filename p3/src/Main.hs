@@ -11,6 +11,9 @@ import CSharpAlgebra
 import SSM
 import CSharpCode
 
+-- REMOVE ME --
+import Debug.Trace
+
 start :: Parser s a -> [s] -> a
 start p = fst . head . filter (null . snd) . parse p
 

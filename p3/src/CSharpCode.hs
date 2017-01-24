@@ -28,6 +28,7 @@ codeAlgebra = CSharpA
         { exprConst = fExprCon
         , exprVar = fExprVar
         , exprOper = fExprOp
+        , exprCall = fExprCall
         }
     }
 
@@ -80,9 +81,11 @@ fExprOp :: Token -> (ValueOrAddress -> Code) -> (ValueOrAddress -> Code) -> Valu
 fExprOp (Operator "=") e1 e2 va = e2 Value ++ [LDS 0] ++ e1 Address ++ [STA 0]
 fExprOp (Operator op)  e1 e2 va = e1 Value ++ e2 Value ++ [opCodes ! op]
 
-
 opCodes :: Map String Instr
 opCodes = fromList [ ("+", ADD), ("-", SUB),  ("*", MUL), ("/", DIV), ("%", MOD)
                    , ("<=", LE), (">=", GE),  ("<", LT),  (">", GT),  ("==", EQ)
                    , ("!=", NE), ("&&", AND), ("||", OR), ("^", XOR)
                    ]
+
+fExprCall :: Token -> [ValueOrAddress -> Code] -> ValueOrAddress -> Code
+fExprCall (LowerId ident) args = const []
