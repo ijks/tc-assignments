@@ -48,7 +48,7 @@ pExprSimple =  ExprConst <$> sConst
 pExprCall :: Parser Token Expr
 pExprCall = ExprCall
     <$> sLowerId
-    <*> parenthesised (listOf pExpr (symbol Comma))
+    <*> parenthesised (listOf pExpr (symbol Comma) <|> succeed [])
 
 pExpr :: Parser Token Expr
 pExpr = pOpers priorities
