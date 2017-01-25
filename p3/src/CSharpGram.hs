@@ -66,11 +66,7 @@ pExpr = pOpers priorities
 
 pOpers :: [[Token]] -> Parser Token Expr
 pOpers (ops:rest) =
-    (choice (operator <$> ops)) <|> pOpers rest
-    where
-        operator :: Token -> Parser Token Expr
-        operator op =
-            (flip ExprOper) <$> pOpers rest <*> symbol op <*> pOpers (ops:rest)
+    chainl (pOpers rest) (ExprOper <$> satisfy (`elem` ops))
 pOpers [] =
     pExprSimple
 
