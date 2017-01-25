@@ -88,4 +88,4 @@ opCodes = fromList [ ("+", ADD), ("-", SUB),  ("*", MUL), ("/", DIV), ("%", MOD)
                    ]
 
 fExprCall :: Token -> [ValueOrAddress -> Code] -> ValueOrAddress -> Code
-fExprCall (LowerId ident) args = const []
+fExprCall (LowerId ident) args va = (args >>= ($ va)) ++ [Bsr ident]
