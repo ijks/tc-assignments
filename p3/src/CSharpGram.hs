@@ -54,7 +54,7 @@ pExpr :: Parser Token Expr
 pExpr = pOpers priorities
     where
         priorities = map (map Operator)
-            [ ["="]
+            [ ["=", "+=", "-=", "*=", "/=", "%=", "|=", "&=", "^="]
             , ["||"]
             , ["&&"]
             , ["==", "!="]

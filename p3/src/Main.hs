@@ -40,5 +40,6 @@ processFile (infile, outfile) =
     putStrLn (outfile ++ " written")
   where process = formatCode
                 . foldCSharp codeAlgebra
+                . foldCSharp desugarAlgebra
                 . start (pClass <* eof)
                 . start lexicalScanner

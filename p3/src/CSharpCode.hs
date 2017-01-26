@@ -125,3 +125,46 @@ fExprCall (LowerId ident) args va env =
     else
         concat code ++ [Bsr ident]
     where code = fmap (\f -> f va env) args
+fExprCall (LowerId ident) args va env = (args >>= (\f -> f va env)) ++ [Bsr ident]
+
+
+-- Sugar TODO: move to better place 
+
+desugarAlgebra :: CSharpAlgebra Class Member Stat Expr
+desugarAlgebra = CSharpA
+    { classDecl = Class
+    , memberDecl = MemberA 
+        { memberD = MemberD
+        , memberM = MemberM 
+        }
+    , statement = StatA
+        { statDecl = StatDecl
+        , statExpr = StatExpr
+        , statIf = StatIf
+        , statWhile = StatWhile
+        , statReturn = StatReturn
+        , statBlock = StatBlock
+        }
+    , expression = ExprA
+        { exprConst = ExprConst
+        , exprVar = ExprVar
+        , exprOper = desugarOps
+        , exprCall = ExprCall
+        }
+    }
+
+desugarOps :: Token -> Expr -> Expr -> Expr
+desugarOps (Operator op) lhs rhs
+    | op `member` sugarOps = ExprOper (Operator "=") lhs (ExprOper (Operator $ sugarOps ! op) lhs rhs)
+    | otherwise = ExprOper (Operator op) lhs rhs
+    where
+        sugarOps = fromList
+            [ ("+=", "+")
+            , ("-=", "-")
+            , ("*=", "*")
+            , ("/=", "/")
+            , ("%=", "%")
+            , ("|=", "||")
+            , ("&=", "&&")
+            , ("^=", "^")
+            ]

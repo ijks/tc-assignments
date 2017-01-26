@@ -95,7 +95,15 @@ stdTypes :: [String]
 stdTypes = ["int", "long", "double", "float", "byte", "short", "bool", "char"]
 
 operators :: [String]
-operators = ["+", "-", "*", "/", "%", "&&", "||", "^", "<=", "<", ">=", ">", "==", "!=", "="]
+operators = 
+    [ "+=", "-=", "*=", "/=", "%=", "|=", "&=", "^="
+    , "+", "-"
+    , "*", "/", "%"
+    , "&&", "||"
+    , "^"
+    , "<=", "<", ">=", ">", "==", "!="
+    , "="
+    ]
 
 
 lexToken :: Parser Char Token
