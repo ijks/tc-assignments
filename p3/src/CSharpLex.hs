@@ -9,6 +9,7 @@ data Token = POpen    | PClose      -- parentheses     ()
            | SOpen    | SClose      -- square brackets []
            | COpen    | CClose      -- curly braces    {}
            | Comma    | Semicolon
+           | Increment| Decrement
            | KeyIf    | KeyElse
            | KeyWhile | KeyFor
            | KeyReturn
@@ -45,6 +46,8 @@ terminals =
     , ( CClose    , "}"      )
     , ( Comma     , ","      )
     , ( Semicolon , ";"      )
+    , ( Increment , "++"     )
+    , ( Decrement , "--"     )
     , ( KeyIf     , "if"     )
     , ( KeyElse   , "else"   )
     , ( KeyWhile  , "while"  )
