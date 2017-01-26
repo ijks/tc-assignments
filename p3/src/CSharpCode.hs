@@ -2,6 +2,7 @@ module CSharpCode where
 
 import Prelude hiding (LT, GT, EQ)
 import Data.Char
+import Data.List (intercalate)
 import Data.Map as M hiding (foldl, foldr)
 import CSharpLex
 import CSharpGram
@@ -53,7 +54,7 @@ fMembMeth t (LowerId x) args stats =
 
 fStatDecl :: Decl -> CodeEnv
 fStatDecl (Decl _ (LowerId ident)) env =
-    let loc = foldr (max) 0 env + 1 -- the highest allocated address, plus 1
+    let loc = foldr max 0 env + 1 -- the highest allocated address, plus 1
     in ([], M.insert ident loc env)
 
 fStatExpr :: (ValueOrAddress -> Env -> Code) -> CodeEnv
@@ -118,4 +119,9 @@ opCodes = fromList [ ("+", ADD), ("-", SUB),  ("*", MUL), ("/", DIV), ("%", MOD)
                    ]
 
 fExprCall :: Token -> [ValueOrAddress -> Env -> Code] -> ValueOrAddress -> Env -> Code
-fExprCall (LowerId ident) args va env = (args >>= (\f -> f va env)) ++ [Bsr ident]
+fExprCall (LowerId ident) args va env =
+    if ident == "print" then
+        intercalate [TRAP 0] code ++ [TRAP 0]
+    else
+        concat code ++ [Bsr ident]
+    where code = fmap (\f -> f va env) args
