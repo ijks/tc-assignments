@@ -130,10 +130,10 @@ pClass = Class <$ symbol KeyClass <*> sUpperId <*> braced (many pMember)
 
 pFor :: Parser Token Stat
 pFor = forToWhile <$ symbol KeyFor <*> 
-    parenthesised ((,,) <$> pStatDecl <*> pExpr <* sSemi <*> pExpr) <*> pBlock
+    parenthesised ((,,) <$> pStatDecl <*> pExpr <* sSemi <*> pExpr) <*> pStat
     where
-        forToWhile (init, condition, inc) (StatBlock body) = 
+        forToWhile (init, condition, inc) body = 
             StatBlock 
                 [ init
-                , StatWhile condition (StatBlock (body ++ [StatExpr inc]))
+                , StatWhile condition (StatBlock ([body, StatExpr inc]))
                 ]
