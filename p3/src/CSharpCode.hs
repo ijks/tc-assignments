@@ -154,9 +154,12 @@ desugarAlgebra = CSharpA
     }
 
 desugarOps :: Token -> Expr -> Expr -> Expr
-desugarOps (Operator op) lhs rhs
-    | op `member` sugarOps = ExprOper (Operator "=") lhs (ExprOper (Operator $ sugarOps ! op) lhs rhs)
-    | otherwise = ExprOper (Operator op) lhs rhs
+desugarOps (Operator op) lhs rhs =
+    case M.lookup op sugarOps of
+        Just o ->
+            ExprOper (Operator "=") lhs (ExprOper (Operator o) lhs rhs)
+        Nothing ->
+            ExprOper (Operator op) lhs rhs
     where
         sugarOps = fromList
             [ ("+=", "+")
