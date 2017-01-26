@@ -10,7 +10,8 @@ data Token = POpen    | PClose      -- parentheses     ()
            | COpen    | CClose      -- curly braces    {}
            | Comma    | Semicolon
            | KeyIf    | KeyElse
-           | KeyWhile | KeyReturn
+           | KeyWhile | KeyFor
+           | KeyReturn
            | KeyTry   | KeyCatch
            | KeyClass | KeyVoid
            | StdType   String       -- the 8 standard types
@@ -47,6 +48,7 @@ terminals =
     , ( KeyIf     , "if"     )
     , ( KeyElse   , "else"   )
     , ( KeyWhile  , "while"  )
+    , ( KeyFor    , "for"    )
     , ( KeyReturn , "return" )
     , ( KeyTry    , "try"    )
     , ( KeyCatch  , "catch"  )

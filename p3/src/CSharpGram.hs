@@ -82,6 +82,7 @@ pStat :: Parser Token Stat
 pStat =  StatExpr <$> pExpr <*  sSemi
      <|> StatIf     <$ symbol KeyIf     <*> parenthesised pExpr <*> pStat <*> optionalElse
      <|> StatWhile  <$ symbol KeyWhile  <*> parenthesised pExpr <*> pStat
+     <|> pFor
      <|> StatReturn <$ symbol KeyReturn <*> pExpr               <*  sSemi
      <|> pBlock
      where optionalElse = option ((\_ x -> x) <$> symbol KeyElse <*> pStat) (StatBlock [])
@@ -113,3 +114,13 @@ pDeclSemi = pDecl <* sSemi
 
 pClass :: Parser Token Class
 pClass = Class <$ symbol KeyClass <*> sUpperId <*> braced (many pMember)
+
+pFor :: Parser Token Stat
+pFor = forToWhile <$ symbol KeyFor <*> 
+    parenthesised ((,,) <$> pStatDecl <*> pExpr <* sSemi <*> pExpr) <*> pBlock
+    where
+        forToWhile (init, condition, inc) (StatBlock body) = 
+            StatBlock 
+                [ init
+                , StatWhile condition (StatBlock (body ++ [StatExpr inc]))
+                ]
