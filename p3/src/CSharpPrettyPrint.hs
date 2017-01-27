@@ -14,7 +14,7 @@ ppAlgebra = CSharpA
         , memberM = ppMembMeth 
         }
     , statement = StatA
-        { statDecl = ppDecl
+        { statDecl = map (++";") . ppDecl 
         , statExpr = ppStatExpr
         , statIf = ppStatIf
         , statWhile = ppStatWhile
@@ -37,7 +37,7 @@ ppClass (UpperId name) body =
 
 ppDecl :: Decl -> [String]
 ppDecl (Decl typ (LowerId name)) =
-    [ppType typ ++ ' ' : name ++ ";"]
+    [ppType typ ++ ' ' : name]
 
 ppMembMeth :: Type -> Token -> [Decl] -> [String] -> [String]
 ppMembMeth typ (LowerId name) decs body =
