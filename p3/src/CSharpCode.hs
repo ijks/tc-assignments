@@ -54,8 +54,9 @@ fMembMeth t (LowerId x) args stats =
 
 fStatDecl :: Decl -> CodeEnv
 fStatDecl (Decl _ (LowerId ident)) env =
-    let loc = foldr max 0 env + 1 -- the highest allocated address, plus 1
-    in ([], M.insert ident loc env)
+    let 
+        loc = foldr max 0 env + 1 -- the highest allocated address, plus 1
+    in ([LDC 0, LDLA loc, STA 0], M.insert ident loc env)
 
 fStatExpr :: (ValueOrAddress -> Env -> Code) -> CodeEnv
 fStatExpr expr = \env -> (expr Value env ++ [pop], env)
