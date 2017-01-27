@@ -43,8 +43,7 @@ pExprSimple :: Parser Token Expr
 pExprSimple =  ExprConst <$> sConst
            <|> ExprVar   <$> sLowerId
            <|> pExprCall
-           <|> pIncrement
-           <|> pDecrement
+           <|> pAdjustOne
            <|> parenthesised pExpr
 
 pExprCall :: Parser Token Expr
@@ -52,16 +51,15 @@ pExprCall = ExprCall
     <$> sLowerId
     <*> parenthesised (listOf pExpr (symbol Comma) <|> succeed [])
 
--- TODO :: move this to a nicer place or redo completely
-pIncrement :: Parser Token Expr
-pIncrement = increment <$> sLowerId <* symbol Increment
+pAdjustOne :: Parser Token Expr
+pAdjustOne =  (adjust "+") <$> sLowerId <* symbol (Operator "++")
+          <|> (adjust "-") <$> sLowerId <* symbol (Operator "--")
     where
-        increment var = ExprOper (Operator "=") (ExprVar var) (ExprOper (Operator "+") (ExprVar var) (ExprConst $ ConstInt 1))
-
-pDecrement :: Parser Token Expr
-pDecrement = decrement <$> sLowerId <* symbol Decrement
-    where
-        decrement var = ExprOper (Operator "=") (ExprVar var) (ExprOper (Operator "-") (ExprVar var) (ExprConst $ ConstInt 1))
+        adjust op var =
+            ExprOper (Operator "=") var' (ExprOper op' var' (ExprConst (ConstInt 1)))
+            where
+                var' = ExprVar var
+                op' = Operator op
 
 pExpr :: Parser Token Expr
 pExpr = pOpers priorities
