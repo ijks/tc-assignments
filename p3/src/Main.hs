@@ -10,6 +10,7 @@ import CSharpGram
 import CSharpAlgebra
 import SSM
 import CSharpCode
+import CSharpPrettyPrint
 
 -- REMOVE ME --
 import Debug.Trace
