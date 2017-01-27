@@ -10,11 +10,11 @@ ppAlgebra :: CSharpAlgebra [String] [String] [String] [String]
 ppAlgebra = CSharpA
     { classDecl = ppClass
     , memberDecl = MemberA 
-        { memberD = ppDecl
+        { memberD = ppDeclSemi
         , memberM = ppMembMeth 
         }
     , statement = StatA
-        { statDecl = map (++";") . ppDecl 
+        { statDecl = ppDeclSemi
         , statExpr = ppStatExpr
         , statIf = ppStatIf
         , statWhile = ppStatWhile
@@ -34,6 +34,9 @@ ppAlgebra = CSharpA
 ppClass :: Token -> [[String]] -> [String]
 ppClass (UpperId name) body = 
     ["class " ++ name] ++ ppBlock body
+
+ppDeclSemi :: Decl -> [String]
+ppDeclSemi = map (++";") . ppDecl 
 
 ppDecl :: Decl -> [String]
 ppDecl (Decl typ (LowerId name)) =
