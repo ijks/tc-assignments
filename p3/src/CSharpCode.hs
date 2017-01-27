@@ -66,7 +66,8 @@ fMembMeth t (LowerId x) args stats =
 
 fStatDecl :: Decl -> Env
 fStatDecl (Decl _ (LowerId ident)) = do
-    let loc = foldr max 0 env + 1 -- the highest allocated address, plus 1
+    defs <- gets fst
+    let loc = foldr max 0 defs + 1 -- the highest allocated address, plus 1
     modify $ first (M.insert ident loc)
     return []
 
@@ -94,7 +95,7 @@ fStatReturn expr =
 
 fStatBlock :: [Env] -> Env
 fStatBlock stats =
-    foldl combine (return []) stats
+    ignore $ foldl combine (return []) stats
     where
         combine env stat = do
             code <- env
@@ -111,7 +112,10 @@ fExprCon (ConstChar c) va = return [LDC (ord c)]
 fExprVar :: Token -> ValueOrAddress -> Env
 fExprVar (LowerId ident) va = do
     defs <- gets fst
-    let loc = defs ! ident
+    let
+        loc = case M.lookup ident defs of
+            Just l -> l
+            Nothing -> error $ "Undefined variable: '" ++ ident ++ "'"
     return $ case va of
         Value    ->  [LDL  loc]
         Address  ->  [LDLA loc]
@@ -138,15 +142,12 @@ opCodes = fromList [ ("+", ADD), ("-", SUB),  ("*", MUL), ("/", DIV), ("%", MOD)
 fExprCall :: Token
     -> [ValueOrAddress -> Env]
     -> ValueOrAddress -> Env
-fExprCall (LowerId ident) args va =
-    if ident == "print" then
-        return $ intercalate [TRAP 0] code ++ [TRAP 0]
-    else
-        return $ concat code ++ [Bsr ident]
-    where
-        code = fmap (\f -> evalState $ f va) args
-fExprCall (LowerId ident) args va =
-    (args >>= (\f -> evalState $ f va)) ++ [Bsr ident]
+fExprCall (LowerId ident) args va = do
+    env <- get
+    let code = fmap (\f -> evalState (f va) env) args
+    return $ if ident == "print"
+        then intercalate [TRAP 0] code ++ [TRAP 0]
+        else concat code ++ [Bsr ident]
 
 
 -- Sugar TODO: move to better place
