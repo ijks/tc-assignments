@@ -4,8 +4,21 @@ class Hello
     
     void main()
     {
-        for (int i; i < 16; i++)
-            print(i);
+        int a;
+
+        if (a)
+        {
+        }
+
+        if (false)
+        {
+          int i;
+        }
+        else
+          for(int j;j<2;j++)
+          {
+              a--;
+          }
     }
     
    //  int square( int x )
