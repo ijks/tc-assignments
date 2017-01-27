@@ -1,3 +1,24 @@
+-- | Daan Rijks & Niek Mulleners
+{-
+
+  This is our final assignment for Talen en Compilers.
+  We did not use comments everywhere, but tried to make our code easy to read
+  and add comments only if really necessary.
+  We did all the main tasks plus exercises 7, 8, 9 & 10.
+  7:
+  We added single- and multiline comments.
+  8:
+  We added both increment and decrement and assignment operations for all operators.
+  9:
+  We added a for statement like the one in C#, including the possibility to leave
+  places empty.
+  10:
+  ppAlgebra provides a way to pretty print the AST, but make sure to use unlines as
+  ppAlgebra returns a list of lines.
+
+-}
+
+
 module Main where
 
 import System.Environment
@@ -11,9 +32,6 @@ import CSharpAlgebra
 import SSM
 import CSharpCode
 import CSharpPrettyPrint
-
--- REMOVE ME --
-import Debug.Trace
 
 start :: Parser s a -> [s] -> a
 start p = fst . head . filter (null . snd) . parse p

@@ -191,7 +191,7 @@ funcCall ident (ty, args) code = concat
         _ -> []
     ]
 
--- Sugar TODO: move to better place
+-- | Sugar
 
 desugarAlgebra :: CSharpAlgebra Class Member Stat Expr
 desugarAlgebra = CSharpA
