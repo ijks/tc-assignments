@@ -5,6 +5,9 @@ module CSharpAlgebra where
 import CSharpLex
 import CSharpGram
 
+-- We decided to turn the algebra type into a record, so it is easier to see
+-- which functions correspond to which type/constructor. It also allows us to
+-- use the 'RecordWildCards' language extension, which keeps pattern matchin brief.
 
 data CSharpAlgebra clas memb stat expr = CSharpA
     { classDecl :: Token -> [memb] -> clas
