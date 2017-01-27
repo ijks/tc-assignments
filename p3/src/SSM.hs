@@ -8,7 +8,7 @@ r0, r1, r2, r3, r4, r5, r6, r7 :: Reg
 r0 = PC
 r1 = SP
 r2 = MP
-r3 = R3
+r3 = R3 -- a.k.a. RR
 r4 = R4
 r5 = R5
 r6 = R6
@@ -60,4 +60,3 @@ instrSize i = case i of {
                   STS  _   -> 2;    STA   _   -> 2;    AJS  _    -> 2;   LINK _ -> 2;   TRAP _ -> 2;
                   SWPR _   -> 2;    LABEL _   -> 0;    otherwise -> 1
               }
-

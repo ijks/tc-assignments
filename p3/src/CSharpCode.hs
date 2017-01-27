@@ -85,10 +85,14 @@ fMembDecl d e = []
 fMembMeth :: Type -> Token -> [Decl] -> Env -> ClassEnv -> Code
 fMembMeth ty (LowerId ident) args stats cenv =
     let
-        (code, (lenv, _)) = runState stats (M.empty, cenv)
-        localVars = M.size lenv
+        (code, (lenv, _)) = runState stats (argsEnv args, cenv)
+        localVars = M.size $ M.filter (> 0) lenv
     in
         [LABEL ident, LINK localVars] ++ code ++ [UNLINK, RET]
+
+argsEnv :: [Decl] -> LocalEnv
+argsEnv args = fromList $ zip (getIdent <$> args) [-2, -3..]
+    where getIdent (Decl _ (LowerId ident)) = ident
 
 fStatDecl :: Decl -> Env
 fStatDecl (Decl _ (LowerId ident)) = do
@@ -117,7 +121,7 @@ fStatWhile expr body = do
 
 fStatReturn :: (ValueOrAddress -> Env) -> Env
 fStatReturn expr =
-    (++ [pop, RET]) <$> expr Value
+    (++ [STR r3]) <$> expr Value
 
 fStatBlock :: [Env] -> Env
 fStatBlock stats =
@@ -166,10 +170,23 @@ fExprCall :: Token
 fExprCall (LowerId ident) args va = do
     env <- get
     let code = fmap (\f -> evalState (f va) env) args
-    let printCode = [LDS 0, TRAP 0]
-    return $ if ident == "print"
-        then intercalate [TRAP 0] code ++ [TRAP 0]
-        else concat code ++ [Bsr ident]
+    if ident == "print" then
+        return $ printCall code
+    else do
+        let sig = snd env ! ident
+        return $ funcCall ident sig code
+
+printCall :: [Code] -> Code
+printCall c = intercalate [LDS 0, TRAP 0] c ++ [LDS 0, TRAP 0]
+
+funcCall :: String -> Signature -> [Code] -> Code
+funcCall ident (ty, args) code = concat
+    [ concat code
+    , [Bsr ident]
+    , case ty of
+        TypePrim _ -> [LDR r3]
+        _ -> []
+    ]
 
 -- Sugar TODO: move to better place
 
