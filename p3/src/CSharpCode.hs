@@ -26,6 +26,9 @@ type Signature = (Type, [Decl])
 type LocalEnv = Map String Address
 type ClassEnv = Map String Signature
 
+-- We use the 'State' monad to keep track of the environment of an
+-- expression, to prevent having to pass around extra parameters all
+-- the time.
 type Env = State (LocalEnv, ClassEnv) Code
 
 -- Ignore the resulting state from a computation
