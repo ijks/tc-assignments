@@ -33,13 +33,13 @@ main = do
 -- processFile compiles one file; it take the name of the input
 -- file and the name of the output file as arguments
 processFile :: (FilePath, FilePath) -> IO ()
-processFile (infile, outfile) =
-  do
+processFile (infile, outfile) = do
     xs <- readFile infile
     writeFile outfile (process xs)
     putStrLn (outfile ++ " written")
-  where process = formatCode
-                . foldCSharp codeAlgebra
-                . foldCSharp desugarAlgebra
-                . start (pClass <* eof)
-                . start lexicalScanner
+    where
+        process = formatCode . codeGen . parseCls
+        parseCls = start (pClass <* eof) . start lexicalScanner
+        codeGen cls =
+            let desugared = foldCSharp desugarAlgebra cls
+            in foldCSharp codeAlgebra desugared (funcDecls cls)

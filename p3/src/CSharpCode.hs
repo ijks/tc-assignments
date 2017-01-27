@@ -4,34 +4,57 @@ import Prelude hiding (LT, GT, EQ)
 
 import Control.Arrow (first, second)
 import Control.Monad.State
-import Data.Char
+import Data.Char (ord)
+import Data.Maybe (mapMaybe)
 import Data.List (intercalate)
-import Data.Map as M hiding (foldl, foldr)
+import Data.Map as M hiding (foldl, foldr, mapMaybe)
 
 import CSharpLex
 import CSharpGram
 import CSharpAlgebra
 import SSM
 
+-- REMOVE ME --
+import Debug.Trace
 
 data ValueOrAddress = Value | Address
     deriving Show
 
 type Address = Int
+type Signature = (Type, [Decl])
 
 type LocalEnv = Map String Address
-type ClassEnv = Map String Member
+type ClassEnv = Map String Signature
 
 type Env = State (LocalEnv, ClassEnv) Code
 
--- Helper function so we can ignore the modified environment from
--- nested blocks.
+-- Ignore the resulting state from a computation
 ignore :: State s a -> State s a
 ignore st = do
     s <- get
     return $ evalState st s
 
-codeAlgebra :: CSharpAlgebra Code Code Env (ValueOrAddress -> Env)
+-- Run one 'Env's after the other, appending the resulting code.
+chainEnv :: Env -> Env -> Env
+chainEnv env stat = do
+    code <- env
+    code' <- stat
+    return $ code ++ code'
+
+-- We decided to write this as a function, because that's much more
+-- succinct than defining an algebra. Using the 'circular program'
+-- method outlined in the assignment also did not seem to work, instead
+-- causing the runtime to print a cryptic '<<loop>>' error.
+funcDecls :: Class -> ClassEnv
+funcDecls (Class _ members) = fromList $ mapMaybe go members
+    where
+        go (MemberD decl) =
+            Nothing
+        go (MemberM ty (LowerId ident) args _) =
+            Just (ident, (ty, args))
+
+
+codeAlgebra :: CSharpAlgebra (ClassEnv -> Code) (ClassEnv -> Code) Env (ValueOrAddress -> Env)
 codeAlgebra = CSharpA
     { classDecl = fClas
     , memberDecl = MemberA { memberD = fMembDecl, memberM = fMembMeth }
@@ -51,18 +74,21 @@ codeAlgebra = CSharpA
         }
     }
 
-fClas :: Token -> [Code] -> Code
-fClas c ms = [Bsr "main", HALT] ++ concat ms
+fClas :: Token -> [ClassEnv -> Code] -> ClassEnv -> Code
+fClas ident members cenv =
+    let code = members >>= ($ cenv)
+    in [Bsr "main", HALT] ++ code
 
-fMembDecl :: Decl -> Code
-fMembDecl d = []
+fMembDecl :: Decl -> ClassEnv -> Code
+fMembDecl d e = []
 
-fMembMeth :: Type -> Token -> [Decl] -> Env -> Code
-fMembMeth t (LowerId x) args stats =
+fMembMeth :: Type -> Token -> [Decl] -> Env -> ClassEnv -> Code
+fMembMeth ty (LowerId ident) args stats cenv =
     let
-        (code, (lenv, _)) = runState stats (M.empty, M.empty)
+        (code, (lenv, _)) = runState stats (M.empty, cenv)
         localVars = M.size lenv
-    in [LABEL x, LINK localVars] ++ code ++ [UNLINK, RET]
+    in
+        [LABEL ident, LINK localVars] ++ code ++ [UNLINK, RET]
 
 fStatDecl :: Decl -> Env
 fStatDecl (Decl _ (LowerId ident)) = do
@@ -95,12 +121,7 @@ fStatReturn expr =
 
 fStatBlock :: [Env] -> Env
 fStatBlock stats =
-    ignore $ foldl combine (return []) stats
-    where
-        combine env stat = do
-            code <- env
-            code' <- stat
-            return $ code ++ code'
+    ignore $ foldl chainEnv (return []) stats
 
 fExprCon :: Token -> ValueOrAddress -> Env
 fExprCon (ConstInt n) va = return [LDC n]
