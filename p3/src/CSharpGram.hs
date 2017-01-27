@@ -1,5 +1,7 @@
 module CSharpGram where
 
+import Data.Maybe
+
 import ParseLib.Abstract hiding (braced, bracketed, parenthesised, (<$), (*>), (<*))
 import CSharpLex
 
@@ -128,10 +130,16 @@ pClass = Class <$ symbol KeyClass <*> sUpperId <*> braced (many pMember)
 
 pFor :: Parser Token Stat
 pFor = forToWhile <$ symbol KeyFor <*> 
-    parenthesised ((,,) <$> pStatDecl <*> pExpr <* sSemi <*> pExpr) <*> pStat
+    parenthesised 
+        ((,,) 
+        <$> optional pDecl <* sSemi 
+        <*> optional pExpr <* sSemi 
+        <*> optional pExpr
+        ) <*> pStat
     where
         forToWhile (init, condition, inc) body = 
-            StatBlock 
-                [ init
-                , StatWhile condition (StatBlock ([body, StatExpr inc]))
-                ]
+            StatBlock $ addInit [StatWhile checkCondition body']
+            where
+                addInit = maybe id ((:) . StatDecl) init
+                checkCondition = fromMaybe (ExprConst (ConstBool True)) condition
+                body' = StatBlock (body : maybeToList (StatExpr <$> inc))
