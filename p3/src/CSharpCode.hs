@@ -119,14 +119,12 @@ opCodes = fromList [ ("+", ADD), ("-", SUB),  ("*", MUL), ("/", DIV), ("%", MOD)
                    ]
 
 fExprCall :: Token -> [ValueOrAddress -> Env -> Code] -> ValueOrAddress -> Env -> Code
-fExprCall (LowerId ident) args va env =
-    if ident == "print" then
-        intercalate [TRAP 0] code ++ [TRAP 0]
-    else
-        concat code ++ [Bsr ident]
-    where code = fmap (\f -> f va env) args
-fExprCall (LowerId ident) args va env = (args >>= (\f -> f va env)) ++ [Bsr ident]
-
+fExprCall (LowerId ident) args va env
+    | ident == "print" = intercalate print code ++ print
+    | otherwise = concat code ++ [Bsr ident]
+    where 
+        code = fmap (\f -> f va env) args
+        print = [LDS 0, TRAP 0]
 
 -- Sugar TODO: move to better place 
 
