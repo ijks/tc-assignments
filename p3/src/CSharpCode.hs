@@ -1,9 +1,13 @@
 module CSharpCode where
 
 import Prelude hiding (LT, GT, EQ)
+
+import Control.Arrow (first, second)
+import Control.Monad.State
 import Data.Char
 import Data.List (intercalate)
 import Data.Map as M hiding (foldl, foldr)
+
 import CSharpLex
 import CSharpGram
 import CSharpAlgebra
@@ -13,13 +17,21 @@ import SSM
 data ValueOrAddress = Value | Address
     deriving Show
 
-type Env = Map String Int
+type Address = Int
 
--- TODO: maybe use @State Env Code@ instead?
-type CodeEnv = Env -> (Code, Env)
+type LocalEnv = Map String Address
+type ClassEnv = Map String Member
 
+type Env = State (LocalEnv, ClassEnv) Code
 
-codeAlgebra :: CSharpAlgebra Code Code CodeEnv (ValueOrAddress -> Env -> Code)
+-- Helper function so we can ignore the modified environment from
+-- nested blocks.
+ignore :: State s a -> State s a
+ignore st = do
+    s <- get
+    return $ evalState st s
+
+codeAlgebra :: CSharpAlgebra Code Code Env (ValueOrAddress -> Env)
 codeAlgebra = CSharpA
     { classDecl = fClas
     , memberDecl = MemberA { memberD = fMembDecl, memberM = fMembMeth }
@@ -45,72 +57,77 @@ fClas c ms = [Bsr "main", HALT] ++ concat ms
 fMembDecl :: Decl -> Code
 fMembDecl d = []
 
-fMembMeth :: Type -> Token -> [Decl] -> CodeEnv -> Code
+fMembMeth :: Type -> Token -> [Decl] -> Env -> Code
 fMembMeth t (LowerId x) args stats =
     let
-        (code, env) = stats $ M.empty
-        localVars = M.size env
+        (code, (lenv, _)) = runState stats (M.empty, M.empty)
+        localVars = M.size lenv
     in [LABEL x, LINK localVars] ++ code ++ [UNLINK, RET]
 
-fStatDecl :: Decl -> CodeEnv
-fStatDecl (Decl _ (LowerId ident)) env =
+fStatDecl :: Decl -> Env
+fStatDecl (Decl _ (LowerId ident)) = do
     let loc = foldr max 0 env + 1 -- the highest allocated address, plus 1
-    in ([], M.insert ident loc env)
+    modify $ first (M.insert ident loc)
+    return []
 
-fStatExpr :: (ValueOrAddress -> Env -> Code) -> CodeEnv
-fStatExpr expr = \env -> (expr Value env ++ [pop], env)
+fStatExpr :: (ValueOrAddress -> Env) -> Env
+fStatExpr expr = expr Value
 
-fStatIf :: (ValueOrAddress -> Env -> Code) -> CodeEnv -> CodeEnv -> CodeEnv
-fStatIf expr t f = \env ->
-    let
-        (ct, _) = t env
-        (cf, _) = f env
-        (nt, nf) = (codeSize ct, codeSize cf)
-    in
-        (expr Value env ++ [BRF (nt + 2)] ++ ct ++ [BRA nf] ++ cf, env)
+fStatIf :: (ValueOrAddress -> Env) -> Env -> Env -> Env
+fStatIf expr true false = do
+    ct <- ignore true
+    cf <- ignore false
+    ce <- expr Value
+    let (nt, nf) = (codeSize ct, codeSize cf)
+    return $ ce ++ [BRF (nt + 2)] ++ ct ++ [BRA nf] ++ cf
 
-fStatWhile :: (ValueOrAddress -> Env -> Code) -> CodeEnv -> CodeEnv
-fStatWhile expr body = \env ->
-    let
-        (cb, _) = body env
-        ce = expr Value env
-        (n, k) = (codeSize cb, codeSize ce)
-    in
-        ([BRA n] ++ cb ++ ce ++ [BRT (-(n + k + 2))], env)
+fStatWhile :: (ValueOrAddress -> Env) -> Env -> Env
+fStatWhile expr body = do
+    cb <- ignore body
+    ce <- expr Value
+    let (n, k) = (codeSize cb, codeSize ce)
+    return $ [BRA n] ++ cb ++ ce ++ [BRT (-(n + k + 2))]
 
-fStatReturn :: (ValueOrAddress -> Env -> Code) -> CodeEnv
-fStatReturn expr = \env -> (expr Value env ++ [pop] ++ [RET], env)
+fStatReturn :: (ValueOrAddress -> Env) -> Env
+fStatReturn expr =
+    (++ [pop, RET]) <$> expr Value
 
-fStatBlock :: [CodeEnv] -> CodeEnv
-fStatBlock stats = \env ->
-    foldl combine ([], env) stats
+fStatBlock :: [Env] -> Env
+fStatBlock stats =
+    foldl combine (return []) stats
     where
-        combine (c, e) stat =
-            let (c', e') = stat e
-            in (c ++ c', e')
+        combine env stat = do
+            code <- env
+            code' <- stat
+            return $ code ++ code'
 
-fExprCon :: Token -> ValueOrAddress -> Env -> Code
-fExprCon (ConstInt n) va env = [LDC n]
-fExprCon (ConstBool False) va env = [LDC 0]
-fExprCon (ConstBool True) va env = [LDC 1]
-fExprCon (ConstChar c) va env = [LDC (ord c)]
+fExprCon :: Token -> ValueOrAddress -> Env
+fExprCon (ConstInt n) va = return [LDC n]
+fExprCon (ConstBool False) va = return [LDC 0]
+fExprCon (ConstBool True) va = return [LDC 1]
+fExprCon (ConstChar c) va = return [LDC (ord c)]
 
 
-fExprVar :: Token -> ValueOrAddress -> Env -> Code
-fExprVar (LowerId x) va env =
-    let
-        loc = env ! x
-    in
-        case va of
-            Value    ->  [LDL  loc]
-            Address  ->  [LDLA loc]
+fExprVar :: Token -> ValueOrAddress -> Env
+fExprVar (LowerId ident) va = do
+    defs <- gets fst
+    let loc = defs ! ident
+    return $ case va of
+        Value    ->  [LDL  loc]
+        Address  ->  [LDLA loc]
 
 fExprOp :: Token
-    -> (ValueOrAddress -> Env -> Code)
-    -> (ValueOrAddress -> Env -> Code)
-    -> ValueOrAddress -> Env -> Code
-fExprOp (Operator "=") lhs rhs va env = rhs Value env ++ [LDS 0] ++ lhs Address env ++ [STA 0]
-fExprOp (Operator op)  lhs rhs va env = lhs Value env ++ rhs Value env ++ [opCodes ! op]
+    -> (ValueOrAddress -> Env)
+    -> (ValueOrAddress -> Env)
+    -> ValueOrAddress -> Env
+fExprOp (Operator "=") lhs rhs va = do
+    rc <- rhs Value
+    lc <- lhs Address
+    return $ rc ++ [LDS 0] ++ lc ++ [STA 0]
+fExprOp (Operator op)  lhs rhs va = do
+    lc <- lhs Value
+    rc <- rhs Value
+    return $ lc ++ rc ++ [opCodes ! op]
 
 opCodes :: Map String Instr
 opCodes = fromList [ ("+", ADD), ("-", SUB),  ("*", MUL), ("/", DIV), ("%", MOD)
@@ -118,24 +135,28 @@ opCodes = fromList [ ("+", ADD), ("-", SUB),  ("*", MUL), ("/", DIV), ("%", MOD)
                    , ("!=", NE), ("&&", AND), ("||", OR), ("^", XOR)
                    ]
 
-fExprCall :: Token -> [ValueOrAddress -> Env -> Code] -> ValueOrAddress -> Env -> Code
-fExprCall (LowerId ident) args va env =
+fExprCall :: Token
+    -> [ValueOrAddress -> Env]
+    -> ValueOrAddress -> Env
+fExprCall (LowerId ident) args va =
     if ident == "print" then
-        intercalate [TRAP 0] code ++ [TRAP 0]
+        return $ intercalate [TRAP 0] code ++ [TRAP 0]
     else
-        concat code ++ [Bsr ident]
-    where code = fmap (\f -> f va env) args
-fExprCall (LowerId ident) args va env = (args >>= (\f -> f va env)) ++ [Bsr ident]
+        return $ concat code ++ [Bsr ident]
+    where
+        code = fmap (\f -> evalState $ f va) args
+fExprCall (LowerId ident) args va =
+    (args >>= (\f -> evalState $ f va)) ++ [Bsr ident]
 
 
--- Sugar TODO: move to better place 
+-- Sugar TODO: move to better place
 
 desugarAlgebra :: CSharpAlgebra Class Member Stat Expr
 desugarAlgebra = CSharpA
     { classDecl = Class
-    , memberDecl = MemberA 
+    , memberDecl = MemberA
         { memberD = MemberD
-        , memberM = MemberM 
+        , memberM = MemberM
         }
     , statement = StatA
         { statDecl = StatDecl
